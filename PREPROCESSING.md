@@ -55,6 +55,7 @@ module.exports = async ({ content, file, app, obsidian, findWikiEmbeds, addImage
 | `obsidian` | Obsidian API 模块，例如 `parseLinktext`、`requestUrl`、`TFile` |
 | `findWikiEmbeds(content)` | 返回当前内容中实际 `![[...]]` 嵌入的 `{from, to, original, link, alias?}`；跳过 YAML、代码、转义和注释 |
 | `await addImage(blob, options?)` | 将图片登记到本次文档的内存图片表，返回可用于 Markdown 的临时路径 |
+| `addComment({key, text})` | 登记待导出的全文评论；`text` 为纯文本，`key` 在同一脚本、同一文档内必须唯一且稳定 |
 
 `findWikiEmbeds` 使用 Lezer Markdown 解析器，基于当前字符串计算偏移，而不是原笔记的缓存偏移。修改文本时应从后往前替换，避免偏移改变。它只提取 Wiki 嵌入，不包含普通 Markdown 图片链接。
 
@@ -86,6 +87,36 @@ module.exports = async ({ content, addImage }) => {
 示例的 API 依据本机 Excalidraw 2.26.4 核对。自动化测试验证调用、文件解析、片段、尺寸、重复嵌入及资源清理；实际画板的字体、外部图片与复杂嵌入渲染效果，应使用预览核对。此版本未做真实飞书上传验收。
 
 另有 [cleanup.js](examples/cleanup.js) 示例，移除 `<!-- obshare-private-start -->` 到 `<!-- obshare-private-end -->` 之间的内容。可以放在列表第一行，先清理内容再渲染画板。
+
+## Duet 行间对话转评论（1.2.4）
+
+将 [duet-to-comments.js](examples/duet-to-comments.js) 放到库内 `Scripts/ObShare/duet-to-comments.js`，在预处理路径中排在图片脚本之前：
+
+```text
+Scripts/ObShare/duet-to-comments.js
+Scripts/ObShare/excalidraw-to-png.js
+```
+
+脚本将 `@ai 提问` 和紧随其后的 `> [!agent]+ Ai` 引用块从上传副本中移除，登记为一条包含提问与回答的**全文评论**。识别已安装 Duet 的 profile 名称（未能读取时使用 ai/claude/codex）；已删除 profile 的请求在配有 agent 回复时也能识别。无回复的请求、孤立 agent 回复也保留在评论中。普通正文、其他 callout、代码块、行内代码、注释和 YAML 保留。它针对 Duet 的行间 mention 格式，独立 conversation 笔记的 `[!user]` 和普通 AI 正文不属于这种格式。
+
+框架在正文上传成功并保存文档记录后才写评论，主文档及直接引用文档均适用。预处理预览会同时展示处理后正文和待导出的评论；示例脚本不发网络请求。原笔记不会改动。
+
+飞书评论为纯文本，Markdown 标记、代码、图片链接和表格源码保留为文字，不转换成富文本或上传评论图片。提问和回答在同一条全文评论里，发布者是 ObShare 使用的应用身份。全文评论不定位到具体段落。较长内容按每段 3000 个 Unicode 字符拆成多条评论，这是本插件的保守分段策略。
+
+每条评论有 `[ObShare:…]` 同步标记，上传历史记录持久保存该文档的导出身份、评论 ID 和首条回复 ID。同步前分页读取已解决/未解决全文评论，用标记查找：内容相同则跳过，回答变化则更新首条回复，不更改解决状态，不操作普通人工评论。创建响应或本地 ID 保存失败后，下一次同步可从云端标记找回；查询失败则停止评论写入。请保留标记和上传历史，不要更名脚本路径，否则可能产生新的导出身份。
+
+**重复上传要复用评论，必须在 ObShare 开启“更新已有文档”并绑定正确的笔记路径**，使其上传到同一个飞书文档；关闭更新模式仍按原设置新建文档，每个新文档会拥有自己的评论。脚本使用“提问文本 + 同文档相同提问的出现序号”作 key，因此更改提问或调整重复提问的顺序会改变对应关系。删除本地问答不会删除云端历史评论；长回答缩短时多余旧分段也保留，避免自动删评论。
+
+评论阶段没有事务回滚。部分评论失败时保留成功的正文/评论，单独显示“正文已上传，但评论同步未完成”；修复权限或网络后重新同步。应用需拥有 `docs:document.comment:create`、`docs:document.comment:read`、`docs:document.comment:update`，以及目标文档的评论访问权限（更广的等价 scope 也可）。API 无原生幂等键；本地锁、持久身份和云端标记降低重复风险，但跨设备同时上传、服务端查询延迟或手动删除标记不能保证严格一次写入。
+
+自定义脚本也可使用此接口，解析和正文转换留在脚本里，云端写入交给插件：
+
+```js
+module.exports = ({ content, addComment }) => {
+    addComment({ key: 'review-note-1', text: '需要保留的补充说明' });
+    return content;
+};
+```
 
 ## 开发验证
 

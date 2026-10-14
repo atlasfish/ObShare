@@ -5,7 +5,8 @@ import { CalloutConverter, CalloutInfo } from './callout-converter';
 import { YamlProcessor, YamlInfo } from './yaml-processor';
 import { LinkProcessor, UploadResult } from './link-processor';
 import { MermaidConverter, MermaidInfo, MermaidConversionResult } from './mermaid-converter';
-import { UploadPreprocessor, GeneratedImage, PreprocessResult, parseScriptPaths } from './upload-preprocessor';
+import { UploadPreprocessor, GeneratedImage, PreprocessResult, PreparedComment, parseScriptPaths } from './upload-preprocessor';
+import { syncDocumentComments, CommentExportState } from './comment-sync';
 import { findImageRanges } from './markdown-embeds';
 import { DocumentSyncError, findSyncTarget, replaceDocumentContent } from './document-sync';
 
@@ -57,6 +58,7 @@ class NotificationManager {
 
 // 上传历史记录接口
 interface UploadHistoryItem {
+	commentExport?: CommentExportState;
 	sourcePath?: string;
 	needsPermissionSetup?: boolean;
 	title: string;
@@ -689,7 +691,7 @@ export default class FeishuUploaderPlugin extends Plugin {
 			// 步骤4: 正常上传流程 (55-85%)
 			progressModal.updateProgress(55, '正在上传文档到飞书...');
 			const result = await this.publishPreparedDocument(file, content, orderedImageInfos, prepared.images,
-				status => progressModal.updateProgress(70, status));
+				status => progressModal.updateProgress(70, status), false, prepared.comments);
 
 
 			// 步骤4: 处理YAML和Callout (75-90%)
@@ -776,7 +778,7 @@ export default class FeishuUploaderPlugin extends Plugin {
 
 	async publishPreparedDocument(
 		file: TFile, content: string, imageInfos?: ImageInfo[], generatedImages?: ReadonlyMap<string, GeneratedImage>,
-		onProgress?: (status: string) => void, isReferencedDocument = false
+		onProgress?: (status: string) => void, isReferencedDocument = false, comments: readonly PreparedComment[] = []
 	): Promise<UploadResult> {
 		const target = this.settings.updateExistingDocuments
 			? findSyncTarget(file, this.settings.uploadHistory, this.app.vault.getMarkdownFiles()) : undefined;
@@ -798,6 +800,20 @@ export default class FeishuUploaderPlugin extends Plugin {
 			// Persist each successful publication immediately, even if a later parent upload fails.
 			await this.addUploadHistory(file.basename, published.url, published.token, undefined, undefined,
 				isReferencedDocument, file.path);
+			// Comment errors are partial success: the published body and its history remain usable.
+			if (comments.length) {
+				try {
+					onProgress?.('正在同步文档评论...');
+					const history = this.settings.uploadHistory.find(item => item.docToken === published.token)!;
+					if (!history.commentExport) {
+						history.commentExport = { namespace: crypto.randomUUID(), bindings: {} };
+					}
+					await this.saveHistoryData(); // Durable identity before any cloud comment write.
+					await syncDocumentComments(client, published.token, comments, history.commentExport, () => this.saveHistoryData());
+				} catch (error) {
+					new Notice(`「${file.basename}」正文已上传，但评论同步未完成：${error instanceof Error ? error.message : String(error)}。请修复后重新同步。`, 15000);
+				}
+			}
 			return { ...published, title: file.basename, updated: !!target };
 		} catch (error) {
 			if (target && !(error instanceof DocumentSyncError)) {
@@ -2387,10 +2403,16 @@ class PreprocessingPreviewModal extends Modal {
 	constructor(app: App, private file: TFile, private result: PreprocessResult) { super(app); }
 	override onOpen(): void {
 		this.titleEl.setText(`上传预处理预览：${this.file.basename}`);
-		this.contentEl.createEl('p', { text: `生成图片 ${this.result.images.size} 张。以下内容是预处理结果，后续仍会经过 ObShare 的双链、YAML 和图片转换。` });
+		this.contentEl.createEl('p', { text: `生成图片 ${this.result.images.size} 张，待导出全文评论 ${this.result.comments.length} 条。以下内容是预处理结果，后续仍会经过 ObShare 的双链、YAML 和图片转换。预览不会上传正文或评论。` });
 		const source = this.contentEl.createEl('textarea', { cls: 'obshare-preprocessing-preview' });
 		source.value = this.result.content;
 		source.readOnly = true;
+		for (const [index, comment] of this.result.comments.entries()) {
+			this.contentEl.createEl('h3', { text: `全文评论 ${index + 1}` });
+			const preview = this.contentEl.createEl('textarea', { cls: 'obshare-preprocessing-preview' });
+			preview.value = comment.text;
+			preview.readOnly = true;
+		}
 		for (const [path, image] of this.result.images) {
 			this.contentEl.createEl('p', { text: path });
 			const preview = this.contentEl.createEl('img', { cls: 'obshare-preprocessing-image' });

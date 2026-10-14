@@ -4307,6 +4307,52 @@ var _FeishuApiClient = class {
    * @param content Markdown 内容
    * @returns 转换结果
    */
+  async commentRequest(path, method, body) {
+    var _a;
+    const token = await this.getAccessToken();
+    (_a = this.apiCallCountCallback) == null ? void 0 : _a.call(this);
+    const response = await (0, import_obsidian.requestUrl)({
+      url: `${this.baseUrl}/drive/v1/files/${path}`,
+      method,
+      headers: { Authorization: `Bearer ${token}`, "Content-Type": "application/json" },
+      ...body !== void 0 ? { body: JSON.stringify(body) } : {}
+    });
+    const result = response.json;
+    if (result.code !== 0)
+      throw new Error(`\u98DE\u4E66\u8BC4\u8BBA\u63A5\u53E3\u5931\u8D25\uFF08${result.code}\uFF09\uFF1A${result.msg}`);
+    return result.data;
+  }
+  async listDocumentComments(docToken) {
+    var _a;
+    const items = [];
+    for (const solved of [false, true]) {
+      let page = "";
+      do {
+        const params = new URLSearchParams({ file_type: "docx", is_whole: "true", is_solved: String(solved), page_size: "100" });
+        if (page)
+          params.set("page_token", page);
+        const data = await this.commentRequest(
+          `${encodeURIComponent(docToken)}/comments?${params}`,
+          "GET"
+        );
+        items.push(...(_a = data.items) != null ? _a : []);
+        if (data.has_more && (!data.page_token || data.page_token === page))
+          throw new Error("\u98DE\u4E66\u8BC4\u8BBA\u5206\u9875\u6807\u8BB0\u7F3A\u5931\u6216\u91CD\u590D");
+        page = data.has_more ? data.page_token : "";
+      } while (page);
+    }
+    return [...new Map(items.map((item) => [item.comment_id, item])).values()];
+  }
+  async createDocumentComment(docToken, text) {
+    return this.commentRequest(`${encodeURIComponent(docToken)}/comments?file_type=docx`, "POST", {
+      reply_list: { replies: [{ content: { elements: [{ type: "text_run", text_run: { text: text.replace(/</g, "&lt;").replace(/>/g, "&gt;") } }] } }] }
+    });
+  }
+  async updateDocumentComment(docToken, commentId, replyId, text) {
+    await this.commentRequest(`${encodeURIComponent(docToken)}/comments/${encodeURIComponent(commentId)}/replies/${encodeURIComponent(replyId)}?file_type=docx`, "PUT", {
+      content: { elements: [{ type: "text_run", text_run: { text: text.replace(/</g, "&lt;").replace(/>/g, "&gt;") } }] }
+    });
+  }
   async convertMarkdownToBlocks(content) {
     var _a, _b;
     try {
@@ -5517,6 +5563,8 @@ var UploadPreprocessor = class {
   }
   async run(content, file) {
     const images = /* @__PURE__ */ new Map();
+    const comments = [];
+    const commentKeys = /* @__PURE__ */ new Set();
     const id = crypto.randomUUID();
     let imageIndex = 0;
     const addImage = async (image, options = {}) => {
@@ -5552,7 +5600,17 @@ var UploadPreprocessor = class {
     };
     for (const script of this.scripts) {
       try {
-        const result = await script.run({ content, file, app: this.app, obsidian, findWikiEmbeds, addImage });
+        const addComment = (comment) => {
+          if (typeof (comment == null ? void 0 : comment.key) !== "string" || !comment.key.trim() || typeof comment.text !== "string" || !comment.text.trim()) {
+            throw new Error("addComment \u9700\u8981\u975E\u7A7A key \u548C text \u5B57\u7B26\u4E32");
+          }
+          const key = JSON.stringify([script.path, comment.key]);
+          if (commentKeys.has(key))
+            throw new Error("addComment key \u5728\u540C\u4E00\u811A\u672C\u3001\u540C\u4E00\u6587\u6863\u5185\u5FC5\u987B\u552F\u4E00");
+          commentKeys.add(key);
+          comments.push({ key, text: comment.text });
+        };
+        const result = await script.run({ content, file, app: this.app, obsidian, findWikiEmbeds, addImage, addComment });
         if (typeof result !== "string")
           throw new Error("\u811A\u672C\u5FC5\u987B\u8FD4\u56DE Markdown \u5B57\u7B26\u4E32");
         content = result;
@@ -5560,7 +5618,7 @@ var UploadPreprocessor = class {
         throw new PreprocessError(script.path, file.path, error);
       }
     }
-    return { content, images };
+    return { content, images, comments };
   }
 };
 
@@ -5868,8 +5926,11 @@ var _LinkProcessor = class {
     this.processingDocuments.add(wikiLink.title);
     try {
       const originalContent = await this.app.vault.read(wikiLink.file);
-      const prepared = this.preprocessor ? await this.preprocessor.run(originalContent, wikiLink.file) : { content: originalContent, images: void 0 };
-      const uploadResult = this.plugin.publishPreparedDocument ? await this.plugin.publishPreparedDocument(wikiLink.file, prepared.content, void 0, prepared.images, void 0, true) : await this.feishuClient.uploadDocument(
+      const prepared = this.preprocessor ? await this.preprocessor.run(originalContent, wikiLink.file) : { content: originalContent, images: void 0, comments: [] };
+      if (prepared.comments.length && !this.plugin.publishPreparedDocument) {
+        throw new DocumentSyncError("\u5F53\u524D\u4E0A\u4F20\u5668\u4E0D\u652F\u6301\u8BC4\u8BBA\u540C\u6B65\uFF0C\u8BF7\u4F7F\u7528 ObShare \u7684\u7EDF\u4E00\u4E0A\u4F20\u6D41\u7A0B");
+      }
+      const uploadResult = this.plugin.publishPreparedDocument ? await this.plugin.publishPreparedDocument(wikiLink.file, prepared.content, void 0, prepared.images, void 0, true, prepared.comments) : await this.feishuClient.uploadDocument(
         wikiLink.file.name,
         prepared.content,
         this.plugin.settings.folderToken,
@@ -6296,6 +6357,55 @@ MermaidConverter.DEFAULT_BACKGROUND_COLOR = "#ffffff";
 MermaidConverter.RENDER_TIMEOUT = 1e4;
 // 10秒超时
 MermaidConverter.debugEnabled = false;
+
+// comment-sync.ts
+var replyText = (reply) => reply.content.elements.map((element) => {
+  var _a, _b;
+  return (_b = (_a = element.text_run) == null ? void 0 : _a.text) != null ? _b : "";
+}).join("");
+async function syncDocumentComments(client, token, comments, state, save) {
+  if (!comments.length)
+    return;
+  const existing = await client.listDocumentComments(token);
+  for (const comment of comments) {
+    const characters = Array.from(comment.text);
+    const chunks = [];
+    for (let at = 0; at < characters.length; at += 3e3)
+      chunks.push(characters.slice(at, at + 3e3).join(""));
+    for (let index = 0; index < chunks.length; index++) {
+      const digest = await crypto.subtle.digest("SHA-256", new TextEncoder().encode(JSON.stringify([state.namespace, comment.key, index])));
+      const id = Array.from(new Uint8Array(digest), (byte) => byte.toString(16).padStart(2, "0")).join("");
+      const marker = `[ObShare:${id}]`;
+      const text = `${marker}
+${chunks.length > 1 ? `\uFF08\u7B2C ${index + 1}/${chunks.length} \u90E8\u5206\uFF09
+` : ""}${chunks[index]}`;
+      const escapedText = text.replace(/</g, "&lt;").replace(/>/g, "&gt;");
+      const matches = existing.flatMap((item) => item.reply_list.replies.slice(0, 1).filter((reply) => replyText(reply).startsWith(marker + "\n")).map((reply) => ({ item, reply })));
+      if (matches.length > 1)
+        throw new Error("\u53D1\u73B0\u91CD\u590D\u7684 ObShare \u8BC4\u8BBA\u6807\u8BB0\uFF0C\u8BF7\u5148\u68C0\u67E5\u4E91\u7AEF\u8BC4\u8BBA");
+      const found = matches[0];
+      let binding;
+      if (found) {
+        binding = { commentId: found.item.comment_id, replyId: found.reply.reply_id };
+        if (![text, escapedText].includes(replyText(found.reply)))
+          await client.updateDocumentComment(token, binding.commentId, binding.replyId, text);
+      } else {
+        const prior = state.bindings[id];
+        if (prior && existing.some((item) => item.comment_id === prior.commentId)) {
+          throw new Error("\u5DF2\u6709\u5BFC\u51FA\u8BC4\u8BBA\u7684\u6807\u8BB0\u88AB\u4FEE\u6539\uFF0C\u8BF7\u6062\u590D\u6807\u8BB0\u540E\u91CD\u8BD5");
+        }
+        const created = await client.createDocumentComment(token, text);
+        const reply = created.reply_list.replies[0];
+        if (!created.comment_id || !(reply == null ? void 0 : reply.reply_id))
+          throw new Error("\u8BC4\u8BBA\u521B\u5EFA\u54CD\u5E94\u7F3A\u5C11 ID\uFF0C\u4E0B\u6B21\u540C\u6B65\u5C06\u4ECE\u4E91\u7AEF\u6807\u8BB0\u6062\u590D");
+        binding = { commentId: created.comment_id, replyId: reply.reply_id };
+        existing.push(created);
+      }
+      state.bindings[id] = binding;
+      await save();
+    }
+  }
+}
 
 // main.ts
 var NotificationManager = class {
@@ -6769,7 +6879,9 @@ var FeishuUploaderPlugin = class extends import_obsidian5.Plugin {
         content,
         orderedImageInfos,
         prepared.images,
-        (status) => progressModal.updateProgress(70, status)
+        (status) => progressModal.updateProgress(70, status),
+        false,
+        prepared.comments
       );
       let processStep = 80;
       if (cachedYaml) {
@@ -6833,7 +6945,7 @@ var FeishuUploaderPlugin = class extends import_obsidian5.Plugin {
       FeishuApiClient.clearMermaidImageCache();
     }
   }
-  async publishPreparedDocument(file, content, imageInfos, generatedImages, onProgress, isReferencedDocument = false) {
+  async publishPreparedDocument(file, content, imageInfos, generatedImages, onProgress, isReferencedDocument = false, comments = []) {
     const target = this.settings.updateExistingDocuments ? findSyncTarget(file, this.settings.uploadHistory, this.app.vault.getMarkdownFiles()) : void 0;
     const keys = [`path:${file.path}`, ...target ? [`doc:${target.docToken}`] : []];
     if (keys.some((key) => this.publishing.has(key)))
@@ -6867,6 +6979,19 @@ var FeishuUploaderPlugin = class extends import_obsidian5.Plugin {
         isReferencedDocument,
         file.path
       );
+      if (comments.length) {
+        try {
+          onProgress == null ? void 0 : onProgress("\u6B63\u5728\u540C\u6B65\u6587\u6863\u8BC4\u8BBA...");
+          const history = this.settings.uploadHistory.find((item) => item.docToken === published.token);
+          if (!history.commentExport) {
+            history.commentExport = { namespace: crypto.randomUUID(), bindings: {} };
+          }
+          await this.saveHistoryData();
+          await syncDocumentComments(client, published.token, comments, history.commentExport, () => this.saveHistoryData());
+        } catch (error) {
+          new import_obsidian5.Notice(`\u300C${file.basename}\u300D\u6B63\u6587\u5DF2\u4E0A\u4F20\uFF0C\u4F46\u8BC4\u8BBA\u540C\u6B65\u672A\u5B8C\u6210\uFF1A${error instanceof Error ? error.message : String(error)}\u3002\u8BF7\u4FEE\u590D\u540E\u91CD\u65B0\u540C\u6B65\u3002`, 15e3);
+        }
+      }
       return { ...published, title: file.basename, updated: !!target };
     } catch (error) {
       if (target && !(error instanceof DocumentSyncError)) {
@@ -7932,10 +8057,16 @@ var PreprocessingPreviewModal = class extends import_obsidian5.Modal {
   }
   onOpen() {
     this.titleEl.setText(`\u4E0A\u4F20\u9884\u5904\u7406\u9884\u89C8\uFF1A${this.file.basename}`);
-    this.contentEl.createEl("p", { text: `\u751F\u6210\u56FE\u7247 ${this.result.images.size} \u5F20\u3002\u4EE5\u4E0B\u5185\u5BB9\u662F\u9884\u5904\u7406\u7ED3\u679C\uFF0C\u540E\u7EED\u4ECD\u4F1A\u7ECF\u8FC7 ObShare \u7684\u53CC\u94FE\u3001YAML \u548C\u56FE\u7247\u8F6C\u6362\u3002` });
+    this.contentEl.createEl("p", { text: `\u751F\u6210\u56FE\u7247 ${this.result.images.size} \u5F20\uFF0C\u5F85\u5BFC\u51FA\u5168\u6587\u8BC4\u8BBA ${this.result.comments.length} \u6761\u3002\u4EE5\u4E0B\u5185\u5BB9\u662F\u9884\u5904\u7406\u7ED3\u679C\uFF0C\u540E\u7EED\u4ECD\u4F1A\u7ECF\u8FC7 ObShare \u7684\u53CC\u94FE\u3001YAML \u548C\u56FE\u7247\u8F6C\u6362\u3002\u9884\u89C8\u4E0D\u4F1A\u4E0A\u4F20\u6B63\u6587\u6216\u8BC4\u8BBA\u3002` });
     const source = this.contentEl.createEl("textarea", { cls: "obshare-preprocessing-preview" });
     source.value = this.result.content;
     source.readOnly = true;
+    for (const [index, comment] of this.result.comments.entries()) {
+      this.contentEl.createEl("h3", { text: `\u5168\u6587\u8BC4\u8BBA ${index + 1}` });
+      const preview = this.contentEl.createEl("textarea", { cls: "obshare-preprocessing-preview" });
+      preview.value = comment.text;
+      preview.readOnly = true;
+    }
     for (const [path, image] of this.result.images) {
       this.contentEl.createEl("p", { text: path });
       const preview = this.contentEl.createEl("img", { cls: "obshare-preprocessing-image" });

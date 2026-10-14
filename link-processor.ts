@@ -1,6 +1,6 @@
 import { App, TFile, Vault } from 'obsidian';
 import { FeishuApiClient, ImageInfo } from './feishu-api';
-import { GeneratedImage, PreprocessError, UploadPreprocessor } from './upload-preprocessor';
+import { GeneratedImage, PreparedComment, PreprocessError, UploadPreprocessor } from './upload-preprocessor';
 import { DocumentSyncError } from './document-sync';
 
 /**
@@ -36,7 +36,7 @@ export interface UploadResult {
 
 type LinkProcessorPluginContext = {
     publishPreparedDocument?: (file: TFile, content: string, imageInfos?: ImageInfo[], generatedImages?: ReadonlyMap<string, GeneratedImage>,
-        onProgress?: (status: string) => void, isReferencedDocument?: boolean) => Promise<UploadResult>;
+        onProgress?: (status: string) => void, isReferencedDocument?: boolean, comments?: readonly PreparedComment[]) => Promise<UploadResult>;
     settings: {
         folderToken: string;
     };
@@ -263,11 +263,14 @@ export class LinkProcessor {
             const originalContent = await this.app.vault.read(wikiLink.file);
             const prepared = this.preprocessor
                 ? await this.preprocessor.run(originalContent, wikiLink.file)
-                : { content: originalContent, images: undefined };
+                : { content: originalContent, images: undefined, comments: [] };
+            if (prepared.comments.length && !this.plugin.publishPreparedDocument) {
+                throw new DocumentSyncError('当前上传器不支持评论同步，请使用 ObShare 的统一上传流程');
+            }
             
             // 直接使用飞书客户端上传文档，传递正确的folderToken
             const uploadResult = this.plugin.publishPreparedDocument
-                ? await this.plugin.publishPreparedDocument(wikiLink.file, prepared.content, undefined, prepared.images, undefined, true)
+                ? await this.plugin.publishPreparedDocument(wikiLink.file, prepared.content, undefined, prepared.images, undefined, true, prepared.comments)
                 : await this.feishuClient.uploadDocument(
                 wikiLink.file.name,
                 prepared.content,

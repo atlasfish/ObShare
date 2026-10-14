@@ -2,6 +2,7 @@ import { App, TFile, requestUrl, RequestUrlParam } from 'obsidian';
 import { SvgConverter } from './svg-converter';
 import type { GeneratedImage } from './upload-preprocessor';
 import { findImageRanges } from './markdown-embeds';
+import type { CloudComment } from './comment-sync';
 
 // 飞书API响应接口
 export interface FeishuApiResponse<T = unknown> {
@@ -2724,6 +2725,50 @@ export class FeishuApiClient {
      * @param content Markdown 内容
      * @returns 转换结果
      */
+    private async commentRequest<T>(path: string, method: 'GET' | 'POST' | 'PUT', body?: unknown): Promise<T> {
+        const token = await this.getAccessToken();
+        this.apiCallCountCallback?.();
+        const response = await requestUrl({
+            url: `${this.baseUrl}/drive/v1/files/${path}`,
+            method,
+            headers: { Authorization: `Bearer ${token}`, 'Content-Type': 'application/json' },
+            ...(body !== undefined ? { body: JSON.stringify(body) } : {})
+        });
+        const result = response.json as FeishuApiResponse<T>;
+        if (result.code !== 0) throw new Error(`飞书评论接口失败（${result.code}）：${result.msg}`);
+        return result.data;
+    }
+
+    async listDocumentComments(docToken: string): Promise<CloudComment[]> {
+        const items: CloudComment[] = [];
+        // Native API defaults to unresolved local comments. Request both global states explicitly.
+        for (const solved of [false, true]) {
+            let page = '';
+            do {
+                const params = new URLSearchParams({ file_type: 'docx', is_whole: 'true', is_solved: String(solved), page_size: '100' });
+                if (page) params.set('page_token', page);
+                const data = await this.commentRequest<{ items?: CloudComment[]; has_more?: boolean; page_token?: string }>(
+                    `${encodeURIComponent(docToken)}/comments?${params}`, 'GET');
+                items.push(...(data.items ?? []));
+                if (data.has_more && (!data.page_token || data.page_token === page)) throw new Error('飞书评论分页标记缺失或重复');
+                page = data.has_more ? data.page_token! : '';
+            } while (page);
+        }
+        return [...new Map(items.map(item => [item.comment_id, item])).values()];
+    }
+
+    async createDocumentComment(docToken: string, text: string): Promise<CloudComment> {
+        return this.commentRequest(`${encodeURIComponent(docToken)}/comments?file_type=docx`, 'POST', {
+            reply_list: { replies: [{ content: { elements: [{ type: 'text_run', text_run: { text: text.replace(/</g, '&lt;').replace(/>/g, '&gt;') } }] } }] }
+        });
+    }
+
+    async updateDocumentComment(docToken: string, commentId: string, replyId: string, text: string): Promise<void> {
+        await this.commentRequest(`${encodeURIComponent(docToken)}/comments/${encodeURIComponent(commentId)}/replies/${encodeURIComponent(replyId)}?file_type=docx`, 'PUT', {
+            content: { elements: [{ type: 'text_run', text_run: { text: text.replace(/</g, '&lt;').replace(/>/g, '&gt;') } }] }
+        });
+    }
+
     async convertMarkdownToBlocks(content: string): Promise<MarkdownConvertResponse> {
         try {
             const token = await this.getAccessToken();

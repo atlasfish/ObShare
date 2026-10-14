@@ -22,11 +22,16 @@ export interface PreprocessContext {
     findWikiEmbeds: typeof findWikiEmbeds;
     /** Returns a temporary image path to use in Markdown, without writing a vault file. */
     addImage: (image: Blob, options?: ImageOptions) => Promise<string>;
+    /** Collect a full-document plain-text comment; preview has no network side effects. */
+    addComment: (comment: { key: string; text: string }) => void;
 }
+
+export interface PreparedComment { key: string; text: string }
 
 export interface PreprocessResult {
     content: string;
     images: Map<string, GeneratedImage>;
+    comments: PreparedComment[];
 }
 
 type Script = (context: PreprocessContext) => string | Promise<string>;
@@ -71,6 +76,8 @@ export class UploadPreprocessor {
 
     async run(content: string, file: TFile): Promise<PreprocessResult> {
         const images = new Map<string, GeneratedImage>();
+        const comments: PreparedComment[] = [];
+        const commentKeys = new Set<string>();
         const id = crypto.randomUUID();
         let imageIndex = 0;
         const addImage = async (image: Blob, options: ImageOptions = {}): Promise<string> => {
@@ -99,13 +106,22 @@ export class UploadPreprocessor {
         };
         for (const script of this.scripts) {
             try {
-                const result = await script.run({ content, file, app: this.app, obsidian, findWikiEmbeds, addImage });
+                const addComment = (comment: PreparedComment): void => {
+                    if (typeof comment?.key !== 'string' || !comment.key.trim() || typeof comment.text !== 'string' || !comment.text.trim()) {
+                        throw new Error('addComment 需要非空 key 和 text 字符串');
+                    }
+                    const key = JSON.stringify([script.path, comment.key]);
+                    if (commentKeys.has(key)) throw new Error('addComment key 在同一脚本、同一文档内必须唯一');
+                    commentKeys.add(key);
+                    comments.push({ key, text: comment.text });
+                };
+                const result = await script.run({ content, file, app: this.app, obsidian, findWikiEmbeds, addImage, addComment });
                 if (typeof result !== 'string') throw new Error('脚本必须返回 Markdown 字符串');
                 content = result;
             } catch (error) {
                 throw new PreprocessError(script.path, file.path, error);
             }
         }
-        return { content, images };
+        return { content, images, comments };
     }
 }
