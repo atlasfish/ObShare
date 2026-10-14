@@ -1,5 +1,7 @@
 import { App, TFile, Vault } from 'obsidian';
-import { FeishuApiClient } from './feishu-api';
+import { FeishuApiClient, ImageInfo } from './feishu-api';
+import { GeneratedImage, PreparedComment, PreprocessError, UploadPreprocessor } from './upload-preprocessor';
+import { DocumentSyncError } from './document-sync';
 
 /**
  * 双链信息接口
@@ -23,6 +25,7 @@ export interface WikiLinkInfo {
  * 上传结果接口
  */
 export interface UploadResult {
+    updated?: boolean;
     /** 文档token */
     token: string;
     /** 文档URL */
@@ -32,6 +35,8 @@ export interface UploadResult {
 }
 
 type LinkProcessorPluginContext = {
+    publishPreparedDocument?: (file: TFile, content: string, imageInfos?: ImageInfo[], generatedImages?: ReadonlyMap<string, GeneratedImage>,
+        onProgress?: (status: string) => void, isReferencedDocument?: boolean, comments?: readonly PreparedComment[]) => Promise<UploadResult>;
     settings: {
         folderToken: string;
     };
@@ -76,7 +81,7 @@ export class LinkProcessor {
         });
     }
 
-    constructor(app: App, feishuClient: FeishuApiClient, plugin: LinkProcessorPluginContext) {
+    constructor(app: App, feishuClient: FeishuApiClient, plugin: LinkProcessorPluginContext, private preprocessor?: UploadPreprocessor) {
         this.app = app;
         this.vault = app.vault;
         this.feishuClient = feishuClient;
@@ -97,6 +102,8 @@ export class LinkProcessor {
         let match;
         while ((match = wikiLinkRegex.exec(content)) !== null) {
             if (!match[1]) continue; // 跳过无效匹配
+            // Embedded files are handled by the image pipeline, not uploaded as linked notes.
+            if (content[match.index - 1] === '!') continue;
             
             const title = match[1].trim(); // 文档标题
             const originalText = match[0]; // 完整的双链语法
@@ -189,7 +196,7 @@ export class LinkProcessor {
                     wikiLink.feishuToken = result.token;
                     
                     // 如果需要应用权限设置，则为引用文档设置与主文档相同的权限
-                    if (applyPermissions && permissions && result.token) {
+                    if (applyPermissions && permissions && result.token && !result.updated) {
                         try {
                             onProgress?.(`正在为引用文档设置权限: ${wikiLink.title}`);
                             
@@ -214,6 +221,7 @@ export class LinkProcessor {
                     }
                 }
             } catch (error) {
+                if (error instanceof PreprocessError || error instanceof DocumentSyncError) throw error;
                 this.logError(`[双链处理] 文档上传失败: ${wikiLink.title}`, error, {
                     title: wikiLink.title
                 });
@@ -252,19 +260,30 @@ export class LinkProcessor {
 
         try {
             // 读取文件内容
-            const content = await this.app.vault.read(wikiLink.file);
+            const originalContent = await this.app.vault.read(wikiLink.file);
+            const prepared = this.preprocessor
+                ? await this.preprocessor.run(originalContent, wikiLink.file)
+                : { content: originalContent, images: undefined, comments: [] };
+            if (prepared.comments.length && !this.plugin.publishPreparedDocument) {
+                throw new DocumentSyncError('当前上传器不支持评论同步，请使用 ObShare 的统一上传流程');
+            }
             
             // 直接使用飞书客户端上传文档，传递正确的folderToken
-            const uploadResult = await this.feishuClient.uploadDocument(
+            const uploadResult = this.plugin.publishPreparedDocument
+                ? await this.plugin.publishPreparedDocument(wikiLink.file, prepared.content, undefined, prepared.images, undefined, true, prepared.comments)
+                : await this.feishuClient.uploadDocument(
                 wikiLink.file.name,
-                content,
-                this.plugin.settings.folderToken
+                prepared.content,
+                this.plugin.settings.folderToken,
+                undefined,
+                prepared.images
             );
             
             const result: UploadResult = {
                 token: uploadResult.token,
                 url: uploadResult.url,
-                title: wikiLink.title
+                title: wikiLink.title,
+                updated: 'updated' in uploadResult ? uploadResult.updated as boolean : false
             };
             
             // 缓存结果
@@ -273,6 +292,7 @@ export class LinkProcessor {
             return result;
             
         } catch (error) {
+            if (error instanceof PreprocessError || error instanceof DocumentSyncError) throw error;
             this.logError(`[双链处理] 文档上传失败: ${wikiLink.title}`, error, {
                 title: wikiLink.title
             });

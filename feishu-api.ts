@@ -1,5 +1,8 @@
 import { App, TFile, requestUrl, RequestUrlParam } from 'obsidian';
 import { SvgConverter } from './svg-converter';
+import type { GeneratedImage } from './upload-preprocessor';
+import { findImageRanges } from './markdown-embeds';
+import type { CloudComment } from './comment-sync';
 
 // 飞书API响应接口
 export interface FeishuApiResponse<T = unknown> {
@@ -109,8 +112,20 @@ type PermissionRequestBody = {
 
 type ImportTaskQueryResult = ImportTaskQueryResponse | { result?: ImportTaskQueryResponse };
 
-type MarkdownConvertResponse = {
+export type MarkdownConvertResponse = {
+    first_level_block_ids?: string[];
     blocks?: unknown[];
+};
+
+export type DescendantsResponse = {
+    document_revision_id: number;
+    block_id_relations: Array<{ temporary_block_id: string; block_id: string }>;
+};
+
+export type ImageUpdateOptions = {
+    blocks: DocumentBlock[];
+    revision: number;
+    onRevision: (revision: number) => void;
 };
 
 type BlockUpdateRequest = {
@@ -963,9 +978,9 @@ export class FeishuApiClient {
      * @param blockId 块ID
      * @param imageToken 图片token（file_token）
      */
-    async updateDocumentBlock(documentId: string, blockId: string, imageToken: string, imageInfo?: ImageInfo): Promise<void> {
+    async updateDocumentBlock(documentId: string, blockId: string, imageToken: string, imageInfo?: ImageInfo, revision = -1): Promise<number> {
         const token = await this.getAccessToken();
-        const url = `${this.baseUrl}/docx/v1/documents/${documentId}/blocks/${blockId}?document_revision_id=-1`;
+        const url = `${this.baseUrl}/docx/v1/documents/${documentId}/blocks/${blockId}?document_revision_id=${revision}`;
         
         // 获取图片实际尺寸
         let width = 800;
@@ -1058,7 +1073,7 @@ export class FeishuApiClient {
             // 增加API调用计数
             this.apiCallCountCallback?.();
             
-            const result: FeishuApiResponse<unknown> = response.json;
+            const result: FeishuApiResponse<{ document_revision_id: number }> = response.json;
             
             if (result.code !== 0) {
                 console.error('[飞书API] 更新文档块失败:', result.msg);
@@ -1069,8 +1084,7 @@ export class FeishuApiClient {
                 });
                 throw new Error(`更新文档块失败: [${result.code}] ${result.msg}`);
             }
-            
-
+            return result.data.document_revision_id;
         } catch (error) {
             this.logError('[飞书API] 更新文档块失败:', error, {
                 requestUrl: url,
@@ -1091,7 +1105,9 @@ export class FeishuApiClient {
     async processImagesInDocument(
         documentId: string, 
         imageInfos: ImageInfo[], 
-        onProgress?: (status: string) => void
+        onProgress?: (status: string) => void,
+        generatedImages?: ReadonlyMap<string, GeneratedImage>,
+        updateOptions?: ImageUpdateOptions
     ): Promise<void> {
         if (!imageInfos || imageInfos.length === 0) {
             return;
@@ -1100,10 +1116,17 @@ export class FeishuApiClient {
         try {
             // 步骤一：获取文档所有块
             onProgress?.('正在获取文档结构...');
-            const blocks = await this.getDocumentBlocks(documentId);
+            const blocks = updateOptions?.blocks ?? await this.getDocumentBlocks(documentId);
             
             // 找到图片块
             const imageBlocks = blocks.filter(block => block.block_type === 27); // 27表示图片块
+            if (updateOptions && imageBlocks.length !== imageInfos.length) {
+                throw new Error('飞书转换的图片块数量与本地图片数量不一致，已停止更新');
+            }
+            let revision = updateOptions?.revision ?? -1;
+            if (imageInfos.slice(imageBlocks.length).some(info => generatedImages?.has(info.fileName))) {
+                throw new Error('飞书导入结果缺少预处理生成的图片块');
+            }
             
             if (imageBlocks.length === 0) {
                 return;
@@ -1122,7 +1145,7 @@ export class FeishuApiClient {
                 
                 try {
                     // 读取本地图片文件并转换为base64
-                    const fileResult = await this.readImageFileAsBase64(imageInfo.path);
+                    const fileResult = await this.readImageFileAsBase64(imageInfo.path, generatedImages);
                     if (!fileResult) {
                         throw new Error(`无法读取图片文件: ${imageInfo.path}`);
                     }
@@ -1151,14 +1174,21 @@ export class FeishuApiClient {
                     );
                     
                     // 更新文档块
-                    await this.updateDocumentBlock(
+                    const nextRevision = await this.updateDocumentBlock(
                         documentId, 
                         imageBlock.block_id, 
                         fileToken,
-                        imageInfo
+                        imageInfo,
+                        revision
                     );
+                    if (updateOptions) {
+                        if (!Number.isInteger(nextRevision) || nextRevision < 1) throw new Error('图片更新响应缺少文档版本号');
+                        revision = nextRevision;
+                        updateOptions.onRevision(revision);
+                    }
                     
                 } catch (error) {
+                    if (updateOptions || generatedImages?.has(imageInfo.fileName)) throw error;
                     const errorMessage = error instanceof Error ? error.message : String(error);
                     console.error(`[飞书API] 处理图片 ${imageInfo.fileName} 失败:`, errorMessage);
                     this.debug(`[飞书API] 处理图片 ${imageInfo.fileName} 失败详情:`, {
@@ -1283,8 +1313,22 @@ export class FeishuApiClient {
      * @param imagePath 图片文件路径或URL
      * @returns base64编码的图片内容和SVG转换选项（如果是SVG）
      */
-    private async readImageFileAsBase64(imagePath: string): Promise<{ base64: string; width?: number; height?: number; svgConvertOptions?: { originalWidth: number; originalHeight: number; scale: number } } | null> {
+    private async readImageFileAsBase64(imagePath: string, generatedImages?: ReadonlyMap<string, GeneratedImage>): Promise<{ base64: string; width?: number; height?: number; svgConvertOptions?: { originalWidth: number; originalHeight: number; scale: number } } | null> {
         try {
+            const generated = generatedImages?.get(imagePath.split(/[/\\]/).pop() ?? imagePath);
+            if (generated) {
+                const dimensions = await this.getPngDimensionsFromBase64(generated.base64);
+                let width = generated.width ?? dimensions?.width;
+                let height = generated.height ?? dimensions?.height;
+                if (dimensions && generated.width !== undefined && generated.height === undefined) {
+                    height = Math.round(generated.width * dimensions.height / dimensions.width);
+                } else if (dimensions && generated.height !== undefined && generated.width === undefined) {
+                    width = Math.round(generated.height * dimensions.width / dimensions.height);
+                }
+                return { base64: generated.base64,
+                    ...(width !== undefined ? { width } : {}),
+                    ...(height !== undefined ? { height } : {}) };
+            }
             // 处理远程图片
             if (imagePath.startsWith('http://') || imagePath.startsWith('https://')) {
                 this.debug('[飞书API] 检测到远程图片，开始下载:', imagePath);
@@ -1524,6 +1568,7 @@ export class FeishuApiClient {
         
         // 先转换Obsidian图片语法为标准Markdown语法
         const convertedContent = FeishuApiClient.convertObsidianImageSyntax(markdownContent);
+        const imageStarts = new Set(findImageRanges(convertedContent).map(range => range.from));
         
         // 匹配标准Markdown格式的图片: ![alt](path) 或 ![alt](path "title")
         const markdownImageRegex = /!\[([^\]]*)\]\(([^)\s]+)(?:\s+"([^"]*)")?\)/g;
@@ -1533,6 +1578,7 @@ export class FeishuApiClient {
         
         // 处理标准Markdown格式的图片（现在包括转换后的Obsidian图片）
         while ((match = markdownImageRegex.exec(convertedContent)) !== null) {
+            if (!imageStarts.has(match.index)) continue;
             const path = match[2];
             
             if (!path) continue;
@@ -1618,7 +1664,8 @@ export class FeishuApiClient {
         markdownContent: string, 
         documentId?: string,
         onProgress?: (status: string) => void,
-        preProcessedImageInfos?: ImageInfo[]
+        preProcessedImageInfos?: ImageInfo[],
+        generatedImages?: ReadonlyMap<string, GeneratedImage>
     ): Promise<{ token: string; url: string }> {
         let mdFileToken: string | null = null;
         
@@ -1662,7 +1709,7 @@ export class FeishuApiClient {
             
             if (imageInfos.length > 0) {
                 onProgress?.('正在处理文档中的图片...');
-                await this.processImagesInDocument(result.token, imageInfos, onProgress);
+                await this.processImagesInDocument(result.token, imageInfos, onProgress, generatedImages);
             }
             
             // 转换完成后，静默删除MD文件（用户不会察觉）
@@ -1716,7 +1763,8 @@ export class FeishuApiClient {
         fileName: string, 
         markdownContent: string, 
         documentId?: string,
-        onProgress?: (status: string) => void
+        onProgress?: (status: string) => void,
+        generatedImages?: ReadonlyMap<string, GeneratedImage>
     ): Promise<{ token: string; url: string }> {
         let mdFileToken: string | null = null;
         
@@ -1754,7 +1802,7 @@ export class FeishuApiClient {
             const imageInfos = FeishuApiClient.extractImageInfoFromMarkdown(markdownContent, basePath);
             if (imageInfos.length > 0) {
                 onProgress?.('正在处理文档中的图片...');
-                await this.processImagesInDocument(result.token, imageInfos, onProgress);
+                await this.processImagesInDocument(result.token, imageInfos, onProgress, generatedImages);
             }
             
             // 转换完成后，静默删除MD文件（用户不会察觉）
@@ -2211,7 +2259,22 @@ export class FeishuApiClient {
      * @param documentId 文档ID
      * @returns 文档块数组（包含完整的块信息）
      */
-    async getDocumentBlocksDetailed(documentId: string): Promise<DocumentBlock[]> {
+    async getDocumentRevision(documentId: string): Promise<number> {
+        const token = await this.getAccessToken();
+        this.apiCallCountCallback?.();
+        const response = await requestUrl({
+            url: `${this.baseUrl}/docx/v1/documents/${documentId}`,
+            method: 'GET',
+            headers: { Authorization: `Bearer ${token}` }
+        });
+        const result: FeishuApiResponse<{ document: { revision_id: number } }> = response.json;
+        if (result.code !== 0) throw new Error(`获取文档版本失败: ${result.msg}`);
+        const revision = result.data.document.revision_id;
+        if (!Number.isInteger(revision) || revision < 1) throw new Error('飞书未返回有效的文档版本号');
+        return revision;
+    }
+
+    async getDocumentBlocksDetailed(documentId: string, revision = -1): Promise<DocumentBlock[]> {
         try {
             const token = await this.getAccessToken();
             const allBlocks: DocumentBlock[] = [];
@@ -2222,6 +2285,7 @@ export class FeishuApiClient {
                 const url = `${this.baseUrl}/docx/v1/documents/${documentId}/blocks`;
                 const params: Record<string, string> = {
                     page_size: '500',
+                    document_revision_id: String(revision),
                     user_id_type: 'user_id'
                 };
                 
@@ -2436,15 +2500,17 @@ export class FeishuApiClient {
         parentId: string,
         index: number,
         childrenIds: string[],
-        descendants: DocumentBlockPayload[]
-    ): Promise<unknown> {
+        descendants: DocumentBlockPayload[],
+        revision = -1
+    ): Promise<DescendantsResponse> {
         try {
             const token = await this.getAccessToken();
-            const url = `${this.baseUrl}/docx/v1/documents/${documentId}/blocks/${parentId}/descendant?document_revision_id=-1`;
+            const url = `${this.baseUrl}/docx/v1/documents/${documentId}/blocks/${parentId}/descendant?document_revision_id=${revision}`;
 
             const requestBody = {
                 children_id: childrenIds,
-                descendants: descendants,
+                // Relationships are encoded by children; these two fields are response-only.
+                descendants: descendants.map(({ parent_id, revision_id, ...payload }) => payload),
                 index
             };
 
@@ -2472,7 +2538,7 @@ export class FeishuApiClient {
             }
 
             const response = await requestUrl(requestParam);
-            const result: FeishuApiResponse<unknown> = response.json;
+            const result: FeishuApiResponse<DescendantsResponse> = response.json;
 
             this.debug('[飞书API] 创建嵌套文档块原始响应:', {
                 status: response.status,
@@ -2527,11 +2593,11 @@ export class FeishuApiClient {
      * @param blockIds 要删除的块ID数组
      * @returns 删除结果
      */
-    async batchDeleteDocumentBlocks(documentId: string, parentId: string, startIndex: number, endIndex: number): Promise<unknown> {
+    async batchDeleteDocumentBlocks(documentId: string, parentId: string, startIndex: number, endIndex: number, revision = -1): Promise<unknown> {
         return this.queueDeleteRequest(async () => {
             try {
                 const token = await this.getAccessToken();
-                const url = `${this.baseUrl}/docx/v1/documents/${documentId}/blocks/${parentId}/children/batch_delete?document_revision_id=-1`;
+                const url = `${this.baseUrl}/docx/v1/documents/${documentId}/blocks/${parentId}/children/batch_delete?document_revision_id=${revision}`;
 
                 const deleteBody = {
                     start_index: startIndex,
@@ -2659,6 +2725,50 @@ export class FeishuApiClient {
      * @param content Markdown 内容
      * @returns 转换结果
      */
+    private async commentRequest<T>(path: string, method: 'GET' | 'POST' | 'PUT', body?: unknown): Promise<T> {
+        const token = await this.getAccessToken();
+        this.apiCallCountCallback?.();
+        const response = await requestUrl({
+            url: `${this.baseUrl}/drive/v1/files/${path}`,
+            method,
+            headers: { Authorization: `Bearer ${token}`, 'Content-Type': 'application/json' },
+            ...(body !== undefined ? { body: JSON.stringify(body) } : {})
+        });
+        const result = response.json as FeishuApiResponse<T>;
+        if (result.code !== 0) throw new Error(`飞书评论接口失败（${result.code}）：${result.msg}`);
+        return result.data;
+    }
+
+    async listDocumentComments(docToken: string): Promise<CloudComment[]> {
+        const items: CloudComment[] = [];
+        // Native API defaults to unresolved local comments. Request both global states explicitly.
+        for (const solved of [false, true]) {
+            let page = '';
+            do {
+                const params = new URLSearchParams({ file_type: 'docx', is_whole: 'true', is_solved: String(solved), page_size: '100' });
+                if (page) params.set('page_token', page);
+                const data = await this.commentRequest<{ items?: CloudComment[]; has_more?: boolean; page_token?: string }>(
+                    `${encodeURIComponent(docToken)}/comments?${params}`, 'GET');
+                items.push(...(data.items ?? []));
+                if (data.has_more && (!data.page_token || data.page_token === page)) throw new Error('飞书评论分页标记缺失或重复');
+                page = data.has_more ? data.page_token! : '';
+            } while (page);
+        }
+        return [...new Map(items.map(item => [item.comment_id, item])).values()];
+    }
+
+    async createDocumentComment(docToken: string, text: string): Promise<CloudComment> {
+        return this.commentRequest(`${encodeURIComponent(docToken)}/comments?file_type=docx`, 'POST', {
+            reply_list: { replies: [{ content: { elements: [{ type: 'text_run', text_run: { text: text.replace(/</g, '&lt;').replace(/>/g, '&gt;') } }] } }] }
+        });
+    }
+
+    async updateDocumentComment(docToken: string, commentId: string, replyId: string, text: string): Promise<void> {
+        await this.commentRequest(`${encodeURIComponent(docToken)}/comments/${encodeURIComponent(commentId)}/replies/${encodeURIComponent(replyId)}?file_type=docx`, 'PUT', {
+            content: { elements: [{ type: 'text_run', text_run: { text: text.replace(/</g, '&lt;').replace(/>/g, '&gt;') } }] }
+        });
+    }
+
     async convertMarkdownToBlocks(content: string): Promise<MarkdownConvertResponse> {
         try {
             const token = await this.getAccessToken();
