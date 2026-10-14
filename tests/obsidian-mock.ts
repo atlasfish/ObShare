@@ -24,4 +24,9 @@ export function parseLinktext(link: string) {
     const index = link.indexOf('#');
     return index < 0 ? { path: link, subpath: '' } : { path: link.slice(0, index), subpath: link.slice(index) };
 }
-export function requestUrl(): never { throw new Error('Unexpected network request in local test'); }
+let requestHandler: ((request: unknown) => unknown) | undefined;
+export function setRequestHandler(handler: typeof requestHandler): void { requestHandler = handler; }
+export function requestUrl(request: unknown): unknown {
+    if (requestHandler) return requestHandler(request);
+    throw new Error('Unexpected network request in local test');
+}

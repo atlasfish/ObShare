@@ -1,6 +1,7 @@
 import { App, TFile, Vault } from 'obsidian';
-import { FeishuApiClient } from './feishu-api';
-import { PreprocessError, UploadPreprocessor } from './upload-preprocessor';
+import { FeishuApiClient, ImageInfo } from './feishu-api';
+import { GeneratedImage, PreprocessError, UploadPreprocessor } from './upload-preprocessor';
+import { DocumentSyncError } from './document-sync';
 
 /**
  * 双链信息接口
@@ -24,6 +25,7 @@ export interface WikiLinkInfo {
  * 上传结果接口
  */
 export interface UploadResult {
+    updated?: boolean;
     /** 文档token */
     token: string;
     /** 文档URL */
@@ -33,6 +35,8 @@ export interface UploadResult {
 }
 
 type LinkProcessorPluginContext = {
+    publishPreparedDocument?: (file: TFile, content: string, imageInfos?: ImageInfo[], generatedImages?: ReadonlyMap<string, GeneratedImage>,
+        onProgress?: (status: string) => void, isReferencedDocument?: boolean) => Promise<UploadResult>;
     settings: {
         folderToken: string;
     };
@@ -192,7 +196,7 @@ export class LinkProcessor {
                     wikiLink.feishuToken = result.token;
                     
                     // 如果需要应用权限设置，则为引用文档设置与主文档相同的权限
-                    if (applyPermissions && permissions && result.token) {
+                    if (applyPermissions && permissions && result.token && !result.updated) {
                         try {
                             onProgress?.(`正在为引用文档设置权限: ${wikiLink.title}`);
                             
@@ -217,7 +221,7 @@ export class LinkProcessor {
                     }
                 }
             } catch (error) {
-                if (error instanceof PreprocessError) throw error;
+                if (error instanceof PreprocessError || error instanceof DocumentSyncError) throw error;
                 this.logError(`[双链处理] 文档上传失败: ${wikiLink.title}`, error, {
                     title: wikiLink.title
                 });
@@ -262,7 +266,9 @@ export class LinkProcessor {
                 : { content: originalContent, images: undefined };
             
             // 直接使用飞书客户端上传文档，传递正确的folderToken
-            const uploadResult = await this.feishuClient.uploadDocument(
+            const uploadResult = this.plugin.publishPreparedDocument
+                ? await this.plugin.publishPreparedDocument(wikiLink.file, prepared.content, undefined, prepared.images, undefined, true)
+                : await this.feishuClient.uploadDocument(
                 wikiLink.file.name,
                 prepared.content,
                 this.plugin.settings.folderToken,
@@ -273,7 +279,8 @@ export class LinkProcessor {
             const result: UploadResult = {
                 token: uploadResult.token,
                 url: uploadResult.url,
-                title: wikiLink.title
+                title: wikiLink.title,
+                updated: 'updated' in uploadResult ? uploadResult.updated as boolean : false
             };
             
             // 缓存结果
@@ -282,7 +289,7 @@ export class LinkProcessor {
             return result;
             
         } catch (error) {
-            if (error instanceof PreprocessError) throw error;
+            if (error instanceof PreprocessError || error instanceof DocumentSyncError) throw error;
             this.logError(`[双链处理] 文档上传失败: ${wikiLink.title}`, error, {
                 title: wikiLink.title
             });

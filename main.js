@@ -2953,10 +2953,10 @@ var _FeishuApiClient = class {
    * @param blockId 块ID
    * @param imageToken 图片token（file_token）
    */
-  async updateDocumentBlock(documentId, blockId, imageToken, imageInfo) {
+  async updateDocumentBlock(documentId, blockId, imageToken, imageInfo, revision = -1) {
     var _a;
     const token = await this.getAccessToken();
-    const url = `${this.baseUrl}/docx/v1/documents/${documentId}/blocks/${blockId}?document_revision_id=-1`;
+    const url = `${this.baseUrl}/docx/v1/documents/${documentId}/blocks/${blockId}?document_revision_id=${revision}`;
     let width = 800;
     let height = 600;
     if (imageInfo) {
@@ -3035,6 +3035,7 @@ var _FeishuApiClient = class {
         });
         throw new Error(`\u66F4\u65B0\u6587\u6863\u5757\u5931\u8D25: [${result.code}] ${result.msg}`);
       }
+      return result.data.document_revision_id;
     } catch (error) {
       this.logError("[\u98DE\u4E66API] \u66F4\u65B0\u6587\u6863\u5757\u5931\u8D25:", error, {
         requestUrl: url,
@@ -3050,14 +3051,19 @@ var _FeishuApiClient = class {
    * @param imageInfos 图片信息数组
    * @param onProgress 进度回调
    */
-  async processImagesInDocument(documentId, imageInfos, onProgress, generatedImages) {
+  async processImagesInDocument(documentId, imageInfos, onProgress, generatedImages, updateOptions) {
+    var _a, _b;
     if (!imageInfos || imageInfos.length === 0) {
       return;
     }
     try {
       onProgress == null ? void 0 : onProgress("\u6B63\u5728\u83B7\u53D6\u6587\u6863\u7ED3\u6784...");
-      const blocks = await this.getDocumentBlocks(documentId);
+      const blocks = (_a = updateOptions == null ? void 0 : updateOptions.blocks) != null ? _a : await this.getDocumentBlocks(documentId);
       const imageBlocks = blocks.filter((block) => block.block_type === 27);
+      if (updateOptions && imageBlocks.length !== imageInfos.length) {
+        throw new Error("\u98DE\u4E66\u8F6C\u6362\u7684\u56FE\u7247\u5757\u6570\u91CF\u4E0E\u672C\u5730\u56FE\u7247\u6570\u91CF\u4E0D\u4E00\u81F4\uFF0C\u5DF2\u505C\u6B62\u66F4\u65B0");
+      }
+      let revision = (_b = updateOptions == null ? void 0 : updateOptions.revision) != null ? _b : -1;
       if (imageInfos.slice(imageBlocks.length).some((info) => generatedImages == null ? void 0 : generatedImages.has(info.fileName))) {
         throw new Error("\u98DE\u4E66\u5BFC\u5165\u7ED3\u679C\u7F3A\u5C11\u9884\u5904\u7406\u751F\u6210\u7684\u56FE\u7247\u5757");
       }
@@ -3093,14 +3099,21 @@ var _FeishuApiClient = class {
             documentId,
             imageBlock.block_id
           );
-          await this.updateDocumentBlock(
+          const nextRevision = await this.updateDocumentBlock(
             documentId,
             imageBlock.block_id,
             fileToken,
-            imageInfo
+            imageInfo,
+            revision
           );
+          if (updateOptions) {
+            if (!Number.isInteger(nextRevision) || nextRevision < 1)
+              throw new Error("\u56FE\u7247\u66F4\u65B0\u54CD\u5E94\u7F3A\u5C11\u6587\u6863\u7248\u672C\u53F7");
+            revision = nextRevision;
+            updateOptions.onRevision(revision);
+          }
         } catch (error) {
-          if (generatedImages == null ? void 0 : generatedImages.has(imageInfo.fileName))
+          if (updateOptions || (generatedImages == null ? void 0 : generatedImages.has(imageInfo.fileName)))
             throw error;
           const errorMessage = error instanceof Error ? error.message : String(error);
           console.error(`[\u98DE\u4E66API] \u5904\u7406\u56FE\u7247 ${imageInfo.fileName} \u5931\u8D25:`, errorMessage);
@@ -3896,7 +3909,24 @@ var _FeishuApiClient = class {
    * @param documentId 文档ID
    * @returns 文档块数组（包含完整的块信息）
    */
-  async getDocumentBlocksDetailed(documentId) {
+  async getDocumentRevision(documentId) {
+    var _a;
+    const token = await this.getAccessToken();
+    (_a = this.apiCallCountCallback) == null ? void 0 : _a.call(this);
+    const response = await (0, import_obsidian.requestUrl)({
+      url: `${this.baseUrl}/docx/v1/documents/${documentId}`,
+      method: "GET",
+      headers: { Authorization: `Bearer ${token}` }
+    });
+    const result = response.json;
+    if (result.code !== 0)
+      throw new Error(`\u83B7\u53D6\u6587\u6863\u7248\u672C\u5931\u8D25: ${result.msg}`);
+    const revision = result.data.document.revision_id;
+    if (!Number.isInteger(revision) || revision < 1)
+      throw new Error("\u98DE\u4E66\u672A\u8FD4\u56DE\u6709\u6548\u7684\u6587\u6863\u7248\u672C\u53F7");
+    return revision;
+  }
+  async getDocumentBlocksDetailed(documentId, revision = -1) {
     try {
       const token = await this.getAccessToken();
       const allBlocks = [];
@@ -3906,6 +3936,7 @@ var _FeishuApiClient = class {
         const url = `${this.baseUrl}/docx/v1/documents/${documentId}/blocks`;
         const params = {
           page_size: "500",
+          document_revision_id: String(revision),
           user_id_type: "user_id"
         };
         if (pageToken) {
@@ -4080,13 +4111,14 @@ var _FeishuApiClient = class {
    * @param descendants 嵌套块定义数组
    * @returns 创建结果
    */
-  async createDocumentDescendants(documentId, parentId, index, childrenIds, descendants) {
+  async createDocumentDescendants(documentId, parentId, index, childrenIds, descendants, revision = -1) {
     try {
       const token = await this.getAccessToken();
-      const url = `${this.baseUrl}/docx/v1/documents/${documentId}/blocks/${parentId}/descendant?document_revision_id=-1`;
+      const url = `${this.baseUrl}/docx/v1/documents/${documentId}/blocks/${parentId}/descendant?document_revision_id=${revision}`;
       const requestBody = {
         children_id: childrenIds,
-        descendants,
+        // Relationships are encoded by children; these two fields are response-only.
+        descendants: descendants.map(({ parent_id, revision_id, ...payload }) => payload),
         index
       };
       const requestParam = {
@@ -4160,11 +4192,11 @@ var _FeishuApiClient = class {
    * @param blockIds 要删除的块ID数组
    * @returns 删除结果
    */
-  async batchDeleteDocumentBlocks(documentId, parentId, startIndex, endIndex) {
+  async batchDeleteDocumentBlocks(documentId, parentId, startIndex, endIndex, revision = -1) {
     return this.queueDeleteRequest(async () => {
       try {
         const token = await this.getAccessToken();
-        const url = `${this.baseUrl}/docx/v1/documents/${documentId}/blocks/${parentId}/children/batch_delete?document_revision_id=-1`;
+        const url = `${this.baseUrl}/docx/v1/documents/${documentId}/blocks/${parentId}/children/batch_delete?document_revision_id=${revision}`;
         const deleteBody = {
           start_index: startIndex,
           end_index: endIndex
@@ -5532,6 +5564,154 @@ var UploadPreprocessor = class {
   }
 };
 
+// document-sync.ts
+var DocumentSyncError = class extends Error {
+};
+function findSyncTarget(file, history, files) {
+  const bound = history.find((item) => item.sourcePath === file.path);
+  if (bound)
+    return bound;
+  const legacy = history.find((item) => !item.sourcePath && item.title === file.basename);
+  if (!legacy)
+    return void 0;
+  if (files.filter((candidate) => candidate.basename === file.basename).length !== 1) {
+    throw new DocumentSyncError(`\u6709\u591A\u4E2A\u540C\u540D\u7B14\u8BB0\u300C${file.basename}\u300D\uFF0C\u8BF7\u5148\u5728\u4E0A\u4F20\u5386\u53F2\u4E2D\u7ED1\u5B9A\u7B14\u8BB0\u8DEF\u5F84\uFF0C\u518D\u66F4\u65B0\u98DE\u4E66\u6587\u6863\u3002`);
+  }
+  return legacy;
+}
+function planDescendants(converted, documentId) {
+  var _a, _b;
+  if (!((_a = converted.first_level_block_ids) == null ? void 0 : _a.length) || !((_b = converted.blocks) == null ? void 0 : _b.length)) {
+    throw new DocumentSyncError("\u98DE\u4E66 Markdown \u8F6C\u6362\u6CA1\u6709\u8FD4\u56DE\u5B8C\u6574\u7684\u6587\u6863\u7ED3\u6784");
+  }
+  const byId = /* @__PURE__ */ new Map();
+  for (const value of converted.blocks) {
+    if (!value || typeof value !== "object")
+      throw new DocumentSyncError("\u98DE\u4E66\u8FD4\u56DE\u4E86\u65E0\u6548\u7684\u6587\u6863\u5757");
+    const block = JSON.parse(JSON.stringify(value));
+    if (!block.block_id || !Number.isInteger(block.block_type) || byId.has(block.block_id)) {
+      throw new DocumentSyncError("\u98DE\u4E66\u8FD4\u56DE\u4E86\u65E0\u6548\u6216\u91CD\u590D\u7684\u6587\u6863\u5757 ID");
+    }
+    const table = block["table"];
+    if (table) {
+      delete table["cells"];
+      delete table["merge_info"];
+      const property = table["property"];
+      if (property)
+        delete property["merge_info"];
+    }
+    byId.set(block.block_id, block);
+  }
+  const visited = /* @__PURE__ */ new Set();
+  const collect = (id, parentId, subtree) => {
+    var _a2;
+    const block = byId.get(id);
+    if (!block || visited.has(id))
+      throw new DocumentSyncError("\u98DE\u4E66\u6587\u6863\u5757\u5173\u7CFB\u7F3A\u5931\u3001\u91CD\u590D\u6216\u5B58\u5728\u5FAA\u73AF");
+    visited.add(id);
+    block.parent_id = parentId;
+    subtree.push(block);
+    for (const child of (_a2 = block.children) != null ? _a2 : [])
+      collect(child, id, subtree);
+  };
+  const batches = [];
+  let batch = { roots: [], blocks: [] };
+  for (const root of converted.first_level_block_ids) {
+    const subtree = [];
+    collect(root, documentId, subtree);
+    if (subtree.length > 1e3)
+      throw new DocumentSyncError("\u5355\u4E2A\u8868\u683C\u6216\u5D4C\u5957\u5185\u5BB9\u8D85\u8FC7\u98DE\u4E66\u6BCF\u6B21 1000 \u4E2A\u5757\u7684\u9650\u5236\uFF0C\u65E0\u6CD5\u66F4\u65B0");
+    if (batch.blocks.length + subtree.length > 1e3) {
+      batches.push(batch);
+      batch = { roots: [], blocks: [] };
+    }
+    batch.roots.push(root);
+    batch.blocks.push(...subtree);
+  }
+  batches.push(batch);
+  if (visited.size !== byId.size)
+    throw new DocumentSyncError("\u98DE\u4E66\u8F6C\u6362\u5305\u542B\u65E0\u6CD5\u5B9A\u4F4D\u7684\u6587\u6863\u5757\uFF0C\u5DF2\u505C\u6B62\u66F4\u65B0");
+  return batches;
+}
+async function replaceDocumentContent(client, documentId, content, imageInfos, onProgress, generatedImages) {
+  var _a, _b, _c;
+  onProgress == null ? void 0 : onProgress("\u6B63\u5728\u8F6C\u6362\u66F4\u65B0\u5185\u5BB9...");
+  const converted = content.trim() ? await client.convertMarkdownToBlocks(FeishuApiClient.convertObsidianImageSyntax(content)) : {
+    first_level_block_ids: ["empty"],
+    blocks: [{ block_id: "empty", block_type: 2, text: { elements: [{ text_run: { content: "" } }] } }]
+  };
+  const batches = planDescendants(converted, documentId);
+  const imageCount = batches.reduce((count, batch) => count + batch.blocks.filter((block) => block.block_type === 27).length, 0);
+  if (imageCount !== imageInfos.length)
+    throw new DocumentSyncError("\u8F6C\u6362\u540E\u7684\u56FE\u7247\u5757\u6570\u91CF\u4E0E\u7B14\u8BB0\u56FE\u7247\u6570\u91CF\u4E0D\u4E00\u81F4\uFF0C\u5DF2\u505C\u6B62\u66F4\u65B0");
+  let revision = await client.getDocumentRevision(documentId);
+  const initial = await client.getDocumentBlocksDetailed(documentId, revision);
+  const oldRoots = (_a = initial.find((block) => block.block_id === documentId)) == null ? void 0 : _a.children;
+  if (!oldRoots)
+    throw new DocumentSyncError("\u65E0\u6CD5\u83B7\u53D6\u539F\u6587\u6863\u7684\u6B63\u6587\u7ED3\u6784\uFF0C\u5DF2\u505C\u6B62\u66F4\u65B0");
+  const newRoots = [];
+  const newBlocks = [];
+  const sameRoots = (actual, expected) => !!actual && actual.length === expected.length && actual.every((id, index) => id === expected[index]);
+  let mutationPending = false;
+  try {
+    for (const batch of batches) {
+      onProgress == null ? void 0 : onProgress("\u6B63\u5728\u539F\u6587\u6863\u4E2D\u51C6\u5907\u65B0\u6B63\u6587...");
+      mutationPending = true;
+      const result = await client.createDocumentDescendants(documentId, documentId, -1, batch.roots, batch.blocks, revision);
+      const relations = new Map(result.block_id_relations.map((item) => [item.temporary_block_id, item.block_id]));
+      const roots = batch.roots.map((id) => relations.get(id));
+      if (roots.some((id) => !id) || !Number.isInteger(result.document_revision_id) || result.document_revision_id <= revision) {
+        throw new Error("\u98DE\u4E66\u66F4\u65B0\u54CD\u5E94\u7F3A\u5C11\u5757 ID \u6216\u6587\u6863\u7248\u672C\u53F7");
+      }
+      for (const block of batch.blocks) {
+        const id = relations.get(block.block_id);
+        if (!id)
+          throw new Error("\u98DE\u4E66\u66F4\u65B0\u54CD\u5E94\u7F3A\u5C11\u5D4C\u5957\u5757 ID");
+        newBlocks.push({ ...block, block_id: id });
+      }
+      newRoots.push(...roots);
+      revision = result.document_revision_id;
+      mutationPending = false;
+    }
+    if (imageInfos.length) {
+      mutationPending = true;
+      await client.processImagesInDocument(documentId, imageInfos, onProgress, generatedImages, {
+        blocks: newBlocks,
+        revision,
+        onRevision: (next) => {
+          revision = next;
+        }
+      });
+      mutationPending = false;
+    }
+    const current = await client.getDocumentBlocksDetailed(documentId, revision);
+    if (await client.getDocumentRevision(documentId) !== revision || !sameRoots((_b = current.find((block) => block.block_id === documentId)) == null ? void 0 : _b.children, [...oldRoots, ...newRoots])) {
+      throw new Error("\u98DE\u4E66\u6587\u6863\u5728\u66F4\u65B0\u671F\u95F4\u53D1\u751F\u4E86\u5176\u4ED6\u4FEE\u6539\uFF0C\u8BF7\u68C0\u67E5\u540E\u518D\u540C\u6B65");
+    }
+    if (oldRoots.length) {
+      onProgress == null ? void 0 : onProgress("\u6B63\u5728\u66FF\u6362\u539F\u6B63\u6587...");
+      mutationPending = true;
+      await client.batchDeleteDocumentBlocks(documentId, documentId, 0, oldRoots.length, revision);
+      mutationPending = false;
+    }
+  } catch (error) {
+    let rolledBack = false;
+    try {
+      const latest = await client.getDocumentRevision(documentId);
+      const blocks = await client.getDocumentBlocksDetailed(documentId, latest);
+      if (newRoots.length && latest === revision && sameRoots((_c = blocks.find((block) => block.block_id === documentId)) == null ? void 0 : _c.children, [...oldRoots, ...newRoots])) {
+        await client.batchDeleteDocumentBlocks(documentId, documentId, oldRoots.length, oldRoots.length + newRoots.length, latest);
+        rolledBack = true;
+      }
+    } catch (e) {
+    }
+    const reason = error instanceof Error ? error.message : String(error);
+    const state = rolledBack ? "\u5DF2\u79FB\u9664\u672C\u6B21\u65B0\u589E\u5185\u5BB9\uFF0C\u539F\u6B63\u6587\u4FDD\u7559\u3002" : mutationPending || newRoots.length ? "\u8BF7\u68C0\u67E5\u539F\u98DE\u4E66\u6587\u6863\uFF0C\u53EF\u80FD\u4FDD\u7559\u4E86\u672C\u6B21\u65B0\u589E\u5185\u5BB9\uFF1B\u672A\u81EA\u52A8\u65B0\u5EFA\u526F\u672C\u3002" : "\u539F\u6B63\u6587\u672A\u66FF\u6362\u3002";
+    throw new DocumentSyncError(`\u66F4\u65B0\u5DF2\u6709\u6587\u6863\u5931\u8D25\uFF1A${reason}\u3002${state}`);
+  }
+  onProgress == null ? void 0 : onProgress("\u539F\u6587\u6863\u66F4\u65B0\u5B8C\u6210\uFF01");
+}
+
 // link-processor.ts
 var _LinkProcessor = class {
   constructor(app, feishuClient, plugin, preprocessor) {
@@ -5638,7 +5818,7 @@ var _LinkProcessor = class {
           results.set(wikiLink.title, result);
           wikiLink.feishuUrl = result.url;
           wikiLink.feishuToken = result.token;
-          if (applyPermissions && permissions && result.token) {
+          if (applyPermissions && permissions && result.token && !result.updated) {
             try {
               onProgress == null ? void 0 : onProgress(`\u6B63\u5728\u4E3A\u5F15\u7528\u6587\u6863\u8BBE\u7F6E\u6743\u9650: ${wikiLink.title}`);
               await this.feishuClient.setDocumentPermissions(result.token, permissions, userId);
@@ -5658,7 +5838,7 @@ var _LinkProcessor = class {
           }
         }
       } catch (error) {
-        if (error instanceof PreprocessError)
+        if (error instanceof PreprocessError || error instanceof DocumentSyncError)
           throw error;
         this.logError(`[\u53CC\u94FE\u5904\u7406] \u6587\u6863\u4E0A\u4F20\u5931\u8D25: ${wikiLink.title}`, error, {
           title: wikiLink.title
@@ -5689,7 +5869,7 @@ var _LinkProcessor = class {
     try {
       const originalContent = await this.app.vault.read(wikiLink.file);
       const prepared = this.preprocessor ? await this.preprocessor.run(originalContent, wikiLink.file) : { content: originalContent, images: void 0 };
-      const uploadResult = await this.feishuClient.uploadDocument(
+      const uploadResult = this.plugin.publishPreparedDocument ? await this.plugin.publishPreparedDocument(wikiLink.file, prepared.content, void 0, prepared.images, void 0, true) : await this.feishuClient.uploadDocument(
         wikiLink.file.name,
         prepared.content,
         this.plugin.settings.folderToken,
@@ -5699,12 +5879,13 @@ var _LinkProcessor = class {
       const result = {
         token: uploadResult.token,
         url: uploadResult.url,
-        title: wikiLink.title
+        title: wikiLink.title,
+        updated: "updated" in uploadResult ? uploadResult.updated : false
       };
       this.uploadedDocuments.set(wikiLink.title, result);
       return result;
     } catch (error) {
-      if (error instanceof PreprocessError)
+      if (error instanceof PreprocessError || error instanceof DocumentSyncError)
         throw error;
       this.logError(`[\u53CC\u94FE\u5904\u7406] \u6587\u6863\u4E0A\u4F20\u5931\u8D25: ${wikiLink.title}`, error, {
         title: wikiLink.title
@@ -6165,6 +6346,7 @@ var DEFAULT_SETTINGS = {
   // 默认启用双链模式
   debugLoggingEnabled: false,
   preprocessingEnabled: false,
+  updateExistingDocuments: false,
   preprocessingScriptPaths: ""
 };
 var FeishuUploaderPlugin = class extends import_obsidian5.Plugin {
@@ -6178,6 +6360,8 @@ var FeishuUploaderPlugin = class extends import_obsidian5.Plugin {
     this.notificationManager = new NotificationManager();
     // 上次保存的敏感数据哈希，用于检测变化
     this.lastSensitiveDataHash = null;
+    this.publishing = /* @__PURE__ */ new Set();
+    this.uploadingFiles = /* @__PURE__ */ new Set();
   }
   applyDebugLoggingSetting() {
     FeishuApiClient.setDebugEnabled(this.settings.debugLoggingEnabled);
@@ -6200,6 +6384,18 @@ var FeishuUploaderPlugin = class extends import_obsidian5.Plugin {
   // 完成插件初始化（用户同意协议后调用）
   completeInitialization() {
     this.initializeFeishuClient();
+    this.registerEvent(this.app.vault.on("rename", (file, oldPath) => {
+      var _a;
+      let changed = false;
+      for (const item of this.settings.uploadHistory) {
+        if (item.sourcePath === oldPath || ((_a = item.sourcePath) == null ? void 0 : _a.startsWith(oldPath + "/"))) {
+          item.sourcePath = file.path + item.sourcePath.slice(oldPath.length);
+          changed = true;
+        }
+      }
+      if (changed)
+        void this.saveHistoryData();
+    }));
     this.addCommand({
       id: "publish-current-document",
       name: "\u5206\u4EAB\u5F53\u524D\u6587\u6863\u5230\u98DE\u4E66",
@@ -6447,11 +6643,16 @@ var FeishuUploaderPlugin = class extends import_obsidian5.Plugin {
       this.notificationManager.showNotice("\u8BF7\u5148\u5728\u8BBE\u7F6E\u4E2D\u914D\u7F6E\u98DE\u4E66\u6587\u4EF6\u5939 token", 5e3, "missing-folder-token");
       return;
     }
-    let content = await this.app.vault.read(file);
+    if (this.uploadingFiles.has(file.path)) {
+      new import_obsidian5.Notice("\u6B64\u7B14\u8BB0\u6B63\u5728\u4E0A\u4F20\uFF0C\u8BF7\u7B49\u5F85\u5B8C\u6210");
+      return;
+    }
     const title = file.basename;
     const progressModal = new UploadProgressModal(this.app);
     progressModal.open();
+    this.uploadingFiles.add(file.path);
     try {
+      let content = await this.app.vault.read(file);
       progressModal.updateProgress(5, "\u6B63\u5728\u8BFB\u53D6\u6587\u6863\u5185\u5BB9...");
       progressModal.updateProgress(10, "\u6B63\u5728\u5206\u6790\u6587\u6863\u683C\u5F0F...");
       const preprocessor = await this.loadPreprocessor();
@@ -6563,7 +6764,13 @@ var FeishuUploaderPlugin = class extends import_obsidian5.Plugin {
         }
       }
       progressModal.updateProgress(55, "\u6B63\u5728\u4E0A\u4F20\u6587\u6863\u5230\u98DE\u4E66...");
-      const result = await this.performNormalUpload(file, content, hasImages, orderedImageInfos, progressModal, prepared.images);
+      const result = await this.publishPreparedDocument(
+        file,
+        content,
+        orderedImageInfos,
+        prepared.images,
+        (status) => progressModal.updateProgress(70, status)
+      );
       let processStep = 80;
       if (cachedYaml) {
         progressModal.updateProgress(processStep, "\u6B63\u5728\u5904\u7406\u6587\u6863\u4FE1\u606F\u5757...");
@@ -6576,27 +6783,23 @@ var FeishuUploaderPlugin = class extends import_obsidian5.Plugin {
         processStep = 90;
       }
       progressModal.updateProgress(95, "\u6B63\u5728\u4FDD\u5B58\u4E0A\u4F20\u8BB0\u5F55...");
-      const referencedDocs = this.settings.enableDoubleLinkMode && linkProcessor && linkResult && linkResult.uploadResults.size > 0 ? Array.from(linkResult.uploadResults.values()).map((result2) => ({
-        title: result2.title,
-        docToken: result2.token,
-        url: result2.url
-      })) : void 0;
-      await this.addUploadHistory(title, result.url, result.token, void 0, referencedDocs);
-      if (this.settings.enableDoubleLinkMode && referencedDocs && referencedDocs.length > 0) {
-        for (const refDoc of referencedDocs) {
-          await this.addUploadHistory(
-            refDoc.title,
-            refDoc.url,
-            refDoc.docToken,
-            void 0,
-            void 0,
-            true
-            // 标识为引用文档
-          );
-        }
-      }
+      const referencedDocs = this.settings.enableDoubleLinkMode && linkProcessor && linkResult && linkResult.uploadResults.size > 0 ? Array.from(linkResult.uploadResults.values()).map((result2) => {
+        var _a;
+        return {
+          title: result2.title,
+          docToken: result2.token,
+          url: result2.url,
+          updated: (_a = result2.updated) != null ? _a : false
+        };
+      }) : void 0;
+      await this.addUploadHistory(title, result.url, result.token, void 0, referencedDocs != null ? referencedDocs : [], false, file.path, false);
+      if (result.updated && referencedDocs)
+        await this.configureNewReferences(result.token, referencedDocs);
       progressModal.complete();
-      new DocumentPermissionModal(this.app, result.token, result.url, title, this, false).open();
+      if (result.updated)
+        new import_obsidian5.Notice("\u5DF2\u66F4\u65B0\u539F\u98DE\u4E66\u6587\u6863\uFF0C\u94FE\u63A5\u548C\u6743\u9650\u4FDD\u7559");
+      else
+        new DocumentPermissionModal(this.app, result.token, result.url, title, this, false).open();
     } catch (error) {
       const errorMessage = error instanceof Error ? error.message : String(error);
       console.error(`[\u98DE\u4E66\u63D2\u4EF6] \u4E0A\u4F20\u5931\u8D25: ${errorMessage}`);
@@ -6626,66 +6829,100 @@ var FeishuUploaderPlugin = class extends import_obsidian5.Plugin {
         this.showRetryDialog(file);
       }
     } finally {
+      this.uploadingFiles.delete(file.path);
       FeishuApiClient.clearMermaidImageCache();
     }
   }
-  /**
-   * 执行正常的文档上传流程
-   * @param file 文件对象
-   * @param content 文档内容
-   * @param hasImages 是否包含图片
-   * @param orderedImageInfos 图片信息数组
-   * @param progressModal 进度模态框
-   * @returns 上传结果
-   */
-  async performNormalUpload(file, content, hasImages, orderedImageInfos, progressModal, generatedImages) {
-    let result;
-    if (hasImages) {
-      result = await this.feishuRichClient.uploadDocumentWithImageInfos(
-        file.name,
-        // 完整文件名（包含扩展名）用于上传到云空间
-        content,
-        this.settings.folderToken,
-        (status) => {
-          let currentProgress = 55;
-          if (status.includes("\u521B\u5EFA\u5BFC\u5165\u4EFB\u52A1")) {
-            currentProgress = 60;
-          } else if (status.includes("\u7B49\u5F85\u5904\u7406") || status.includes("\u6B63\u5728\u5904\u7406")) {
-            currentProgress = 65;
-          } else if (status.includes("\u5904\u7406\u4E2D") || status.includes("\u8F6C\u6362")) {
-            currentProgress = 75;
-          } else if (status.includes("\u5904\u7406\u56FE\u7247")) {
-            currentProgress = 80;
-          } else if (status.includes("\u5B8C\u6210")) {
-            currentProgress = 85;
-          }
-          progressModal.updateProgress(currentProgress, status);
-        },
-        orderedImageInfos,
-        generatedImages
+  async publishPreparedDocument(file, content, imageInfos, generatedImages, onProgress, isReferencedDocument = false) {
+    const target = this.settings.updateExistingDocuments ? findSyncTarget(file, this.settings.uploadHistory, this.app.vault.getMarkdownFiles()) : void 0;
+    const keys = [`path:${file.path}`, ...target ? [`doc:${target.docToken}`] : []];
+    if (keys.some((key) => this.publishing.has(key)))
+      throw new DocumentSyncError("\u6B64\u6587\u6863\u6B63\u5728\u4E0A\u4F20\u6216\u66F4\u65B0\uFF0C\u8BF7\u7B49\u5F85\u5B8C\u6210");
+    keys.forEach((key) => this.publishing.add(key));
+    try {
+      const client = this.feishuClient;
+      if (!client)
+        throw new Error("\u98DE\u4E66\u5BA2\u6237\u7AEF\u672A\u521D\u59CB\u5316");
+      const images = imageInfos != null ? imageInfos : FeishuApiClient.extractImageInfoFromMarkdown(content);
+      let published;
+      if (target) {
+        await replaceDocumentContent(client, target.docToken, content, images, onProgress, generatedImages);
+        published = { token: target.docToken, url: target.url };
+      } else {
+        published = await client.uploadDocumentWithImageInfos(
+          file.name,
+          content,
+          this.settings.folderToken,
+          onProgress,
+          images,
+          generatedImages
+        );
+      }
+      await this.addUploadHistory(
+        file.basename,
+        published.url,
+        published.token,
+        void 0,
+        void 0,
+        isReferencedDocument,
+        file.path
       );
-    } else {
-      result = await this.feishuClient.uploadDocument(
-        file.name,
-        // 完整文件名（包含扩展名）用于上传到云空间
-        content,
-        this.settings.folderToken,
-        (status) => {
-          let currentProgress = 55;
-          if (status.includes("\u521B\u5EFA\u5BFC\u5165\u4EFB\u52A1")) {
-            currentProgress = 60;
-          } else if (status.includes("\u7B49\u5F85\u5904\u7406") || status.includes("\u6B63\u5728\u5904\u7406")) {
-            currentProgress = 65;
-          } else if (status.includes("\u5904\u7406\u4E2D") || status.includes("\u8F6C\u6362")) {
-            currentProgress = 75;
-          } else if (status.includes("\u5B8C\u6210")) {
-            currentProgress = 85;
-          }
-          progressModal.updateProgress(currentProgress, status);
-        }
-      );
+      return { ...published, title: file.basename, updated: !!target };
+    } catch (error) {
+      if (target && !(error instanceof DocumentSyncError)) {
+        throw new DocumentSyncError(`\u66F4\u65B0\u5DF2\u6709\u6587\u6863\u5931\u8D25\uFF1A${error instanceof Error ? error.message : String(error)}\u3002\u672A\u81EA\u52A8\u521B\u5EFA\u526F\u672C\u3002`);
+      }
+      throw error;
+    } finally {
+      keys.forEach((key) => this.publishing.delete(key));
     }
-    return result;
+  }
+  async saveHistoryData() {
+    await this.saveData(await CryptoUtils.encryptSensitiveSettings(this.settings));
+  }
+  async configureNewReferences(parentToken, references) {
+    var _a;
+    const parentPermissions = (_a = this.settings.uploadHistory.find((item) => item.docToken === parentToken)) == null ? void 0 : _a.permissions;
+    for (const reference of references) {
+      const history = this.settings.uploadHistory.find((item) => item.docToken === reference.docToken);
+      if (!(history == null ? void 0 : history.needsPermissionSetup))
+        continue;
+      try {
+        if (!this.settings.userId)
+          throw new Error("\u672A\u914D\u7F6E\u98DE\u4E66\u7528\u6237 ID");
+        if (parentPermissions) {
+          await this.feishuClient.setDocumentPermissions(reference.docToken, {
+            ...parentPermissions,
+            allowPrintDownload: parentPermissions.allowCreateCopy,
+            copyEntity: parentPermissions.allowCopy ? "anyone_can_view" : "only_full_access",
+            securityEntity: parentPermissions.allowCreateCopy ? "anyone_can_view" : "only_full_access"
+          }, this.settings.userId);
+          await this.updateHistoryPermissions(reference.docToken, parentPermissions);
+        } else {
+          await this.feishuClient.transferDocumentOwnership(reference.docToken, this.settings.userId);
+          delete history.needsPermissionSetup;
+          await this.saveHistoryData();
+        }
+      } catch (error) {
+        throw new Error(`\u6B63\u6587\u5DF2\u66F4\u65B0\uFF0C\u4F46\u65B0\u5F15\u7528\u6587\u6863\u300C${history.title}\u300D\u7684\u6743\u9650\u8BBE\u7F6E\u5931\u8D25\uFF1A${error instanceof Error ? error.message : String(error)}\u3002\u4E0B\u6B21\u540C\u6B65\u4F1A\u91CD\u8BD5\u6743\u9650\u8BBE\u7F6E\uFF0C\u4E0D\u4F1A\u65B0\u5EFA\u526F\u672C\u3002`);
+      }
+    }
+  }
+  async bindHistoryDocument(docToken, path) {
+    const file = this.app.vault.getAbstractFileByPath(path.trim());
+    if (!(file instanceof import_obsidian5.TFile) || file.extension !== "md")
+      throw new Error("\u8BF7\u8F93\u5165\u5E93\u5185 Markdown \u7B14\u8BB0\u7684\u5B8C\u6574\u76F8\u5BF9\u8DEF\u5F84");
+    if (this.publishing.has(`path:${file.path}`) || this.publishing.has(`doc:${docToken}`))
+      throw new Error("\u8BF7\u7B49\u5F85\u5F53\u524D\u4E0A\u4F20\u5B8C\u6210\u540E\u518D\u66F4\u6362\u7ED1\u5B9A");
+    const target = this.settings.uploadHistory.find((item) => item.docToken === docToken);
+    if (!target)
+      throw new Error("\u4E0A\u4F20\u8BB0\u5F55\u5DF2\u4E0D\u5B58\u5728");
+    for (const item of this.settings.uploadHistory) {
+      if (item.sourcePath === file.path)
+        delete item.sourcePath;
+    }
+    target.sourcePath = file.path;
+    await this.saveHistoryData();
   }
   /**
    * 自动处理文档中的 YAML frontmatter（无用户交互）
@@ -6762,20 +6999,26 @@ var FeishuUploaderPlugin = class extends import_obsidian5.Plugin {
   /**
    * 添加上传历史记录
    */
-  async addUploadHistory(title, url, docToken, permissions, referencedDocuments, isReferencedDocument) {
+  async addUploadHistory(title, url, docToken, permissions, referencedDocuments, isReferencedDocument, sourcePath, countUpload = true) {
     const now = new Date();
     const uploadTime = now.getFullYear() + "-" + String(now.getMonth() + 1).padStart(2, "0") + "-" + String(now.getDate()).padStart(2, "0") + " " + String(now.getHours()).padStart(2, "0") + ":" + String(now.getMinutes()).padStart(2, "0");
+    const existingHistory = this.settings.uploadHistory.find((item) => item.docToken === docToken);
     const historyItem = {
+      ...existingHistory,
+      ...isReferencedDocument && !existingHistory && { needsPermissionSetup: true },
       title,
       url,
       uploadTime,
       docToken,
       ...permissions && { permissions },
       ...referencedDocuments && { referencedDocuments },
-      ...isReferencedDocument && { isReferencedDocument }
+      ...isReferencedDocument !== void 0 && { isReferencedDocument },
+      ...sourcePath && { sourcePath }
     };
+    this.settings.uploadHistory = this.settings.uploadHistory.filter((item) => item.docToken !== docToken);
     this.settings.uploadHistory.unshift(historyItem);
-    this.settings.uploadCount++;
+    if (countUpload)
+      this.settings.uploadCount++;
     const encryptedSettings = await CryptoUtils.encryptSensitiveSettings(this.settings);
     await this.saveData(encryptedSettings);
   }
@@ -6786,6 +7029,7 @@ var FeishuUploaderPlugin = class extends import_obsidian5.Plugin {
     const historyItem = this.settings.uploadHistory.find((item) => item.docToken === docToken);
     if (historyItem) {
       historyItem.permissions = permissions;
+      delete historyItem.needsPermissionSetup;
       const encryptedSettings = await CryptoUtils.encryptSensitiveSettings(this.settings);
       await this.saveData(encryptedSettings);
     }
@@ -7086,6 +7330,7 @@ var DocumentPermissionModal = class extends import_obsidian5.Modal {
    * 为引用文档设置相同的权限
    */
   async applyPermissionsToReferencedDocuments(permissions, userId) {
+    var _a;
     try {
       const history = this.plugin.settings.uploadHistory.find((h) => h.docToken === this.docToken);
       if (!history) {
@@ -7098,6 +7343,8 @@ var DocumentPermissionModal = class extends import_obsidian5.Modal {
         return;
       }
       for (const refDoc of history.referencedDocuments) {
+        if (refDoc.updated && !((_a = this.plugin.settings.uploadHistory.find((item) => item.docToken === refDoc.docToken)) == null ? void 0 : _a.needsPermissionSetup))
+          continue;
         try {
           await this.plugin.feishuClient.setDocumentPermissions(refDoc.docToken, permissions, userId);
           await this.plugin.updateHistoryPermissions(refDoc.docToken, {
@@ -7316,6 +7563,10 @@ var FeishuUploaderSettingTab = class extends import_obsidian5.PluginSettingTab {
     folderTokenSetting.nameEl.createSpan({ text: "\u6587\u4EF6\u5939 token " });
     folderTokenSetting.nameEl.createSpan({ text: "*", cls: "obshare-required-field" });
     new import_obsidian5.Setting(containerEl).setName("\u4E0A\u4F20\u8BBE\u7F6E").setHeading();
+    new import_obsidian5.Setting(containerEl).setName("\u66F4\u65B0\u5DF2\u6709\u6587\u6863").setDesc("\u5F00\u542F\u540E\u6309\u7B14\u8BB0\u8DEF\u5F84\u66F4\u65B0\u539F\u98DE\u4E66\u6587\u6863\uFF0C\u4FDD\u7559\u94FE\u63A5\u548C\u6743\u9650\u3002\u65E7\u8BB0\u5F55\u5728\u7B14\u8BB0\u540D\u79F0\u552F\u4E00\u65F6\u81EA\u52A8\u91C7\u7528\u6700\u8FD1\u4E00\u6B21\u4E0A\u4F20\uFF1B\u540C\u540D\u7B14\u8BB0\u8BF7\u5148\u5728\u5386\u53F2\u4E2D\u7ED1\u5B9A\u8DEF\u5F84\u3002\u66F4\u65B0\u4F1A\u66FF\u6362\u6B63\u6587\uFF0C\u5757\u8BC4\u8BBA\u53EF\u80FD\u5931\u6548\u3002\u5173\u95ED\u5219\u6BCF\u6B21\u521B\u5EFA\u65B0\u6587\u6863\u3002").addToggle((toggle) => toggle.setValue(this.plugin.settings.updateExistingDocuments).onChange((value) => {
+      this.plugin.settings.updateExistingDocuments = value;
+      void this.plugin.saveSettings();
+    }));
     new import_obsidian5.Setting(containerEl).setName("\u53CC\u94FE\u6A21\u5F0F").setDesc("\u53CC\u94FE\u6A21\u5F0F\u53EF\u4EE5\u81EA\u52A8\u5E2E\u4F60\u4E0A\u4F20\u6587\u6863\u5185\u6240\u6709[[]]\u5F15\u7528\u7684\u6587\u6863\uFF0C\u81EA\u52A8\u5EFA\u7ACB\u94FE\u63A5\uFF0C\u4F7F\u5F97\u60A8\u7684\u5206\u4EAB\u66F4\u52A0\u4FBF\u6377\u5B8C\u6574\uFF0C\u4F46\u5728\u5F15\u7528\u6587\u6863\u6570\u91CF\u591A\u7684\u60C5\u51B5\u4E0B\uFF0C\u53EF\u80FD\u4F7F\u4E0A\u4F20\u901F\u5EA6\u53D8\u6162\uFF0C\u9700\u8981\u7B49\u5F85\u66F4\u4E45\u3002").addToggle((toggle) => toggle.setValue(this.plugin.settings.enableDoubleLinkMode).onChange((value) => {
       this.plugin.settings.enableDoubleLinkMode = value;
       void this.plugin.saveSettings();
@@ -7409,6 +7660,7 @@ var FeishuUploaderSettingTab = class extends import_obsidian5.PluginSettingTab {
         });
         const uploadsContainer = pageGroupContainer.createDiv("obshare-page-uploads-container");
         pageGroup.uploads.forEach((item, index) => {
+          var _a;
           const historyItem = uploadsContainer.createDiv("obshare-upload-history-item");
           if (index === 0) {
             historyItem.addClass("obshare-upload-history-item-latest");
@@ -7432,6 +7684,18 @@ var FeishuUploaderSettingTab = class extends import_obsidian5.PluginSettingTab {
             cls: "obshare-upload-history-link"
           });
           linkEl.setAttribute("target", "_blank");
+          let bindingPath = (_a = item.sourcePath) != null ? _a : "";
+          new import_obsidian5.Setting(historyItem).setName("\u7ED1\u5B9A\u7B14\u8BB0\u8DEF\u5F84").setDesc("\u6307\u5B9A\u6B64\u98DE\u4E66\u6587\u6863\u5BF9\u5E94\u7684\u5E93\u5185\u7B14\u8BB0\uFF0C\u9002\u7528\u4E8E\u540C\u540D\u7B14\u8BB0\u6216\u66F4\u6362\u540C\u6B65\u76EE\u6807\u3002\u4FDD\u5B58\u7ED1\u5B9A\u672C\u8EAB\u4E0D\u4F1A\u66F4\u65B0\u98DE\u4E66\u3002").addText((text) => text.setPlaceholder("\u6587\u4EF6\u5939/\u7B14\u8BB0.md").setValue(bindingPath).onChange((value) => {
+            bindingPath = value;
+          })).addButton((button) => button.setButtonText("\u4FDD\u5B58\u7ED1\u5B9A").onClick(async () => {
+            try {
+              await this.plugin.bindHistoryDocument(item.docToken, bindingPath);
+              new import_obsidian5.Notice("\u5DF2\u7ED1\u5B9A\u7B14\u8BB0\uFF0C\u4E0B\u6B21\u4E0A\u4F20\u5C06\u91C7\u7528\u6B64\u6587\u6863");
+              this.display();
+            } catch (error) {
+              new import_obsidian5.Notice(error instanceof Error ? error.message : String(error));
+            }
+          }));
           const copyIcon = linkRowEl.createEl("span", {
             text: "\u{1F4CB}",
             cls: "obshare-upload-history-copy-icon"

@@ -7,6 +7,7 @@ import { LinkProcessor, UploadResult } from './link-processor';
 import { MermaidConverter, MermaidInfo, MermaidConversionResult } from './mermaid-converter';
 import { UploadPreprocessor, GeneratedImage, PreprocessResult, parseScriptPaths } from './upload-preprocessor';
 import { findImageRanges } from './markdown-embeds';
+import { DocumentSyncError, findSyncTarget, replaceDocumentContent } from './document-sync';
 
 // 通知管理器
 class NotificationManager {
@@ -56,6 +57,8 @@ class NotificationManager {
 
 // 上传历史记录接口
 interface UploadHistoryItem {
+	sourcePath?: string;
+	needsPermissionSetup?: boolean;
 	title: string;
 	url: string;
 	uploadTime: string; // 格式: YYYY-MM-DD HH:mm
@@ -69,6 +72,7 @@ interface UploadHistoryItem {
 		title: string;
 		docToken: string;
 		url: string;
+		updated?: boolean;
 	}>; // 引用文档列表
 	isReferencedDocument?: boolean; // 标识是否为引用文档
 }
@@ -87,6 +91,7 @@ interface FeishuUploaderSettings {
 	enableDoubleLinkMode: boolean; // 是否启用双链模式
 	debugLoggingEnabled: boolean; // 是否启用调试日志
 	preprocessingEnabled: boolean;
+	updateExistingDocuments: boolean;
 	preprocessingScriptPaths: string;
 }
 
@@ -104,6 +109,7 @@ const DEFAULT_SETTINGS: FeishuUploaderSettings = {
 	enableDoubleLinkMode: true, // 默认启用双链模式
 	debugLoggingEnabled: false,
 	preprocessingEnabled: false,
+	updateExistingDocuments: false,
 	preprocessingScriptPaths: ''
 }
 
@@ -142,6 +148,8 @@ export default class FeishuUploaderPlugin extends Plugin {
 	public notificationManager = new NotificationManager();
 	// 上次保存的敏感数据哈希，用于检测变化
 	private lastSensitiveDataHash: string | null = null;
+	private publishing = new Set<string>();
+	private uploadingFiles = new Set<string>();
 
 	applyDebugLoggingSetting(): void {
 		FeishuApiClient.setDebugEnabled(this.settings.debugLoggingEnabled);
@@ -171,6 +179,16 @@ export default class FeishuUploaderPlugin extends Plugin {
 	completeInitialization() {
 		// 初始化飞书客户端
 		this.initializeFeishuClient();
+		this.registerEvent(this.app.vault.on('rename', (file, oldPath) => {
+			let changed = false;
+			for (const item of this.settings.uploadHistory) {
+				if (item.sourcePath === oldPath || item.sourcePath?.startsWith(oldPath + '/')) {
+					item.sourcePath = file.path + item.sourcePath.slice(oldPath.length);
+					changed = true;
+				}
+			}
+			if (changed) void this.saveHistoryData();
+		}));
 
 		// 添加命令：分享当前文档到飞书
 		this.addCommand({
@@ -497,15 +515,19 @@ export default class FeishuUploaderPlugin extends Plugin {
 			return;
 		}
 
-		// 读取文件内容
-		let content = await this.app.vault.read(file);
+		if (this.uploadingFiles.has(file.path)) {
+			new Notice('此笔记正在上传，请等待完成');
+			return;
+		}
 		const title = file.basename;
 
 		// 创建并显示进度条弹窗
 		const progressModal = new UploadProgressModal(this.app);
 		progressModal.open();
+		this.uploadingFiles.add(file.path);
 
 		try {
+			let content = await this.app.vault.read(file);
 			// 步骤1: 准备上传 (0-10%)
 			progressModal.updateProgress(5, '正在读取文档内容...');
 
@@ -666,7 +688,8 @@ export default class FeishuUploaderPlugin extends Plugin {
 
 			// 步骤4: 正常上传流程 (55-85%)
 			progressModal.updateProgress(55, '正在上传文档到飞书...');
-			const result = await this.performNormalUpload(file, content, hasImages, orderedImageInfos, progressModal, prepared.images);
+			const result = await this.publishPreparedDocument(file, content, orderedImageInfos, prepared.images,
+				status => progressModal.updateProgress(70, status));
 
 
 			// 步骤4: 处理YAML和Callout (75-90%)
@@ -694,28 +717,18 @@ export default class FeishuUploaderPlugin extends Plugin {
 				Array.from(linkResult.uploadResults.values()).map((result) => ({
 					title: result.title,
 					docToken: result.token,
-					url: result.url
+					url: result.url,
+					updated: result.updated ?? false
 				})) : undefined;
 			
-			await this.addUploadHistory(title, result.url, result.token, undefined, referencedDocs);
-			
-			if (this.settings.enableDoubleLinkMode && referencedDocs && referencedDocs.length > 0) {
-				for (const refDoc of referencedDocs) {
-					await this.addUploadHistory(
-						refDoc.title, 
-						refDoc.url, 
-						refDoc.docToken, 
-						undefined, 
-						undefined, 
-						true // 标识为引用文档
-					);
-				}
-			}
+			await this.addUploadHistory(title, result.url, result.token, undefined, referencedDocs ?? [], false, file.path, false);
+			if (result.updated && referencedDocs) await this.configureNewReferences(result.token, referencedDocs);
 			
 			// 步骤6: 完成上传
 			progressModal.complete();
 			
-			new DocumentPermissionModal(this.app, result.token, result.url, title, this, false).open();
+			if (result.updated) new Notice('已更新原飞书文档，链接和权限保留');
+			else new DocumentPermissionModal(this.app, result.token, result.url, title, this, false).open();
 			
 		} catch (error) {
 			const errorMessage = error instanceof Error ? error.message : String(error);
@@ -755,79 +768,88 @@ export default class FeishuUploaderPlugin extends Plugin {
 				this.showRetryDialog(file);
 			}
 		} finally {
+			this.uploadingFiles.delete(file.path);
 			// 清理Mermaid图片缓存
 			FeishuApiClient.clearMermaidImageCache();
 		}
 	}
 
-	/**
-	 * 执行正常的文档上传流程
-	 * @param file 文件对象
-	 * @param content 文档内容
-	 * @param hasImages 是否包含图片
-	 * @param orderedImageInfos 图片信息数组
-	 * @param progressModal 进度模态框
-	 * @returns 上传结果
-	 */
-	private async performNormalUpload(
-		file: TFile, 
-		content: string, 
-		hasImages: boolean, 
-		orderedImageInfos: ImageInfo[], 
-		progressModal: UploadProgressModal,
-		generatedImages?: ReadonlyMap<string, GeneratedImage>
-	): Promise<{ token: string; url: string }> {
-		let result: { token: string; url: string };
-		
-		if (hasImages) {
-			// 有图片：使用富文本模式，传递正确顺序的图片信息
-			result = await this.feishuRichClient!.uploadDocumentWithImageInfos(
-				file.name, // 完整文件名（包含扩展名）用于上传到云空间
-				content,
-				this.settings.folderToken,
-				(status: string) => {
-					// 主文档上传占用55%-85%的进度区间，共30%
-					let currentProgress = 55;
-					if (status.includes('创建导入任务')) {
-						currentProgress = 60;
-					} else if (status.includes('等待处理') || status.includes('正在处理')) {
-						currentProgress = 65;
-					} else if (status.includes('处理中') || status.includes('转换')) {
-						currentProgress = 75;
-					} else if (status.includes('处理图片')) {
-						currentProgress = 80;
-					} else if (status.includes('完成')) {
-						currentProgress = 85;
-					}
-					progressModal.updateProgress(currentProgress, status);
-				},
-				orderedImageInfos,
-				generatedImages
-			);
-		} else {
-			// 无图片：使用简单模式
-			result = await this.feishuClient!.uploadDocument(
-				file.name, // 完整文件名（包含扩展名）用于上传到云空间
-				content,
-				this.settings.folderToken,
-				(status: string) => {
-					// 主文档上传占用55%-85%的进度区间，共30%
-					let currentProgress = 55;
-					if (status.includes('创建导入任务')) {
-						currentProgress = 60;
-					} else if (status.includes('等待处理') || status.includes('正在处理')) {
-						currentProgress = 65;
-					} else if (status.includes('处理中') || status.includes('转换')) {
-						currentProgress = 75;
-					} else if (status.includes('完成')) {
-						currentProgress = 85;
-					}
-					progressModal.updateProgress(currentProgress, status);
-				}
-			);
+	async publishPreparedDocument(
+		file: TFile, content: string, imageInfos?: ImageInfo[], generatedImages?: ReadonlyMap<string, GeneratedImage>,
+		onProgress?: (status: string) => void, isReferencedDocument = false
+	): Promise<UploadResult> {
+		const target = this.settings.updateExistingDocuments
+			? findSyncTarget(file, this.settings.uploadHistory, this.app.vault.getMarkdownFiles()) : undefined;
+		const keys = [`path:${file.path}`, ...(target ? [`doc:${target.docToken}`] : [])];
+		if (keys.some(key => this.publishing.has(key))) throw new DocumentSyncError('此文档正在上传或更新，请等待完成');
+		keys.forEach(key => this.publishing.add(key));
+		try {
+			const client = this.feishuClient;
+			if (!client) throw new Error('飞书客户端未初始化');
+			const images = imageInfos ?? FeishuApiClient.extractImageInfoFromMarkdown(content);
+			let published: { token: string; url: string };
+			if (target) {
+				await replaceDocumentContent(client, target.docToken, content, images, onProgress, generatedImages);
+				published = { token: target.docToken, url: target.url };
+			} else {
+				published = await client.uploadDocumentWithImageInfos(file.name, content, this.settings.folderToken,
+					onProgress, images, generatedImages);
+			}
+			// Persist each successful publication immediately, even if a later parent upload fails.
+			await this.addUploadHistory(file.basename, published.url, published.token, undefined, undefined,
+				isReferencedDocument, file.path);
+			return { ...published, title: file.basename, updated: !!target };
+		} catch (error) {
+			if (target && !(error instanceof DocumentSyncError)) {
+				throw new DocumentSyncError(`更新已有文档失败：${error instanceof Error ? error.message : String(error)}。未自动创建副本。`);
+			}
+			throw error;
+		} finally {
+			keys.forEach(key => this.publishing.delete(key));
 		}
-		
-		return result;
+	}
+
+	private async saveHistoryData(): Promise<void> {
+		await this.saveData(await CryptoUtils.encryptSensitiveSettings(this.settings));
+	}
+
+	async configureNewReferences(parentToken: string, references: Array<{ docToken: string }>): Promise<void> {
+		const parentPermissions = this.settings.uploadHistory.find(item => item.docToken === parentToken)?.permissions;
+		for (const reference of references) {
+			const history = this.settings.uploadHistory.find(item => item.docToken === reference.docToken);
+			if (!history?.needsPermissionSetup) continue;
+			try {
+				if (!this.settings.userId) throw new Error('未配置飞书用户 ID');
+				if (parentPermissions) {
+					await this.feishuClient!.setDocumentPermissions(reference.docToken, {
+						...parentPermissions, allowPrintDownload: parentPermissions.allowCreateCopy,
+						copyEntity: parentPermissions.allowCopy ? 'anyone_can_view' : 'only_full_access',
+						securityEntity: parentPermissions.allowCreateCopy ? 'anyone_can_view' : 'only_full_access'
+					}, this.settings.userId);
+					await this.updateHistoryPermissions(reference.docToken, parentPermissions);
+				} else {
+					// No saved sharing policy: grant the configured user ownership without changing public sharing.
+					await this.feishuClient!.transferDocumentOwnership(reference.docToken, this.settings.userId);
+					delete history.needsPermissionSetup;
+					await this.saveHistoryData();
+				}
+			} catch (error) {
+				throw new Error(`正文已更新，但新引用文档「${history.title}」的权限设置失败：${error instanceof Error ? error.message : String(error)}。下次同步会重试权限设置，不会新建副本。`);
+			}
+		}
+	}
+
+	async bindHistoryDocument(docToken: string, path: string): Promise<void> {
+		const file = this.app.vault.getAbstractFileByPath(path.trim());
+		if (!(file instanceof TFile) || file.extension !== 'md') throw new Error('请输入库内 Markdown 笔记的完整相对路径');
+		if (this.publishing.has(`path:${file.path}`) || this.publishing.has(`doc:${docToken}`)) throw new Error('请等待当前上传完成后再更换绑定');
+		const target = this.settings.uploadHistory.find(item => item.docToken === docToken);
+		if (!target) throw new Error('上传记录已不存在');
+		for (const item of this.settings.uploadHistory) {
+			if (item.sourcePath === file.path) delete item.sourcePath;
+		}
+		target.sourcePath = file.path;
+		await this.saveHistoryData();
 	}
 
 	/**
@@ -927,7 +949,7 @@ export default class FeishuUploaderPlugin extends Plugin {
 	/**
 	 * 添加上传历史记录
 	 */
-	async addUploadHistory(title: string, url: string, docToken: string, permissions?: { isPublic: boolean; allowCopy: boolean; allowCreateCopy: boolean }, referencedDocuments?: Array<{title: string; docToken: string; url: string}>, isReferencedDocument?: boolean): Promise<void> {
+	async addUploadHistory(title: string, url: string, docToken: string, permissions?: { isPublic: boolean; allowCopy: boolean; allowCreateCopy: boolean }, referencedDocuments?: Array<{title: string; docToken: string; url: string; updated?: boolean}>, isReferencedDocument?: boolean, sourcePath?: string, countUpload = true): Promise<void> {
 		const now = new Date();
 		const uploadTime = now.getFullYear() + '-' + 
 			String(now.getMonth() + 1).padStart(2, '0') + '-' + 
@@ -935,21 +957,26 @@ export default class FeishuUploaderPlugin extends Plugin {
 			String(now.getHours()).padStart(2, '0') + ':' + 
 			String(now.getMinutes()).padStart(2, '0');
 		
+		const existingHistory = this.settings.uploadHistory.find(item => item.docToken === docToken);
 		const historyItem: UploadHistoryItem = {
+			...existingHistory,
+			...(isReferencedDocument && !existingHistory && { needsPermissionSetup: true }),
 			title,
 			url,
 			uploadTime,
 			docToken,
 			...(permissions && { permissions }),
 			...(referencedDocuments && { referencedDocuments }),
-			...(isReferencedDocument && { isReferencedDocument })
+			...(isReferencedDocument !== undefined && { isReferencedDocument }),
+			...(sourcePath && { sourcePath })
 		};
 		
 		// 添加到历史记录开头
+		this.settings.uploadHistory = this.settings.uploadHistory.filter(item => item.docToken !== docToken);
 		this.settings.uploadHistory.unshift(historyItem);
 		
 		// 增加上传次数
-		this.settings.uploadCount++;
+		if (countUpload) this.settings.uploadCount++;
 		
 		// 文档记录永久保存，不进行清理
 		
@@ -965,6 +992,7 @@ export default class FeishuUploaderPlugin extends Plugin {
 		const historyItem = this.settings.uploadHistory.find(item => item.docToken === docToken);
 		if (historyItem) {
 			historyItem.permissions = permissions;
+			delete historyItem.needsPermissionSetup;
 			// 只保存数据，不重新初始化客户端（加密敏感数据）
 			const encryptedSettings = await CryptoUtils.encryptSensitiveSettings(this.settings);
 			await this.saveData(encryptedSettings);
@@ -1392,6 +1420,7 @@ class DocumentPermissionModal extends Modal {
 
 			// 为每个引用文档设置权限
 			for (const refDoc of history.referencedDocuments) {
+				if (refDoc.updated && !this.plugin.settings.uploadHistory.find(item => item.docToken === refDoc.docToken)?.needsPermissionSetup) continue;
 				try {
 					// 使用与主文档完全相同的权限设置方法
 					await this.plugin.feishuClient!.setDocumentPermissions(refDoc.docToken, permissions, userId);
@@ -1712,6 +1741,13 @@ class FeishuUploaderSettingTab extends PluginSettingTab {
 
 		// 双链模式设置
 		new Setting(containerEl).setName('上传设置').setHeading();
+		new Setting(containerEl)
+			.setName('更新已有文档')
+			.setDesc('开启后按笔记路径更新原飞书文档，保留链接和权限。旧记录在笔记名称唯一时自动采用最近一次上传；同名笔记请先在历史中绑定路径。更新会替换正文，块评论可能失效。关闭则每次创建新文档。')
+			.addToggle(toggle => toggle.setValue(this.plugin.settings.updateExistingDocuments).onChange(value => {
+				this.plugin.settings.updateExistingDocuments = value;
+				void this.plugin.saveSettings();
+			}));
 		
 		new Setting(containerEl)
 			.setName('双链模式')
@@ -1915,6 +1951,18 @@ class FeishuUploaderSettingTab extends PluginSettingTab {
 						cls: 'obshare-upload-history-link'
 					});
 					linkEl.setAttribute('target', '_blank');
+					let bindingPath = item.sourcePath ?? '';
+					new Setting(historyItem)
+						.setName('绑定笔记路径')
+						.setDesc('指定此飞书文档对应的库内笔记，适用于同名笔记或更换同步目标。保存绑定本身不会更新飞书。')
+						.addText(text => text.setPlaceholder('文件夹/笔记.md').setValue(bindingPath).onChange(value => { bindingPath = value; }))
+						.addButton(button => button.setButtonText('保存绑定').onClick(async () => {
+							try {
+								await this.plugin.bindHistoryDocument(item.docToken, bindingPath);
+								new Notice('已绑定笔记，下次上传将采用此文档');
+								this.display();
+							} catch (error) { new Notice(error instanceof Error ? error.message : String(error)); }
+						}));
 					
 					// 复制图标
 					const copyIcon = linkRowEl.createEl('span', { 

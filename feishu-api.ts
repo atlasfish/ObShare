@@ -111,8 +111,20 @@ type PermissionRequestBody = {
 
 type ImportTaskQueryResult = ImportTaskQueryResponse | { result?: ImportTaskQueryResponse };
 
-type MarkdownConvertResponse = {
+export type MarkdownConvertResponse = {
+    first_level_block_ids?: string[];
     blocks?: unknown[];
+};
+
+export type DescendantsResponse = {
+    document_revision_id: number;
+    block_id_relations: Array<{ temporary_block_id: string; block_id: string }>;
+};
+
+export type ImageUpdateOptions = {
+    blocks: DocumentBlock[];
+    revision: number;
+    onRevision: (revision: number) => void;
 };
 
 type BlockUpdateRequest = {
@@ -965,9 +977,9 @@ export class FeishuApiClient {
      * @param blockId 块ID
      * @param imageToken 图片token（file_token）
      */
-    async updateDocumentBlock(documentId: string, blockId: string, imageToken: string, imageInfo?: ImageInfo): Promise<void> {
+    async updateDocumentBlock(documentId: string, blockId: string, imageToken: string, imageInfo?: ImageInfo, revision = -1): Promise<number> {
         const token = await this.getAccessToken();
-        const url = `${this.baseUrl}/docx/v1/documents/${documentId}/blocks/${blockId}?document_revision_id=-1`;
+        const url = `${this.baseUrl}/docx/v1/documents/${documentId}/blocks/${blockId}?document_revision_id=${revision}`;
         
         // 获取图片实际尺寸
         let width = 800;
@@ -1060,7 +1072,7 @@ export class FeishuApiClient {
             // 增加API调用计数
             this.apiCallCountCallback?.();
             
-            const result: FeishuApiResponse<unknown> = response.json;
+            const result: FeishuApiResponse<{ document_revision_id: number }> = response.json;
             
             if (result.code !== 0) {
                 console.error('[飞书API] 更新文档块失败:', result.msg);
@@ -1071,8 +1083,7 @@ export class FeishuApiClient {
                 });
                 throw new Error(`更新文档块失败: [${result.code}] ${result.msg}`);
             }
-            
-
+            return result.data.document_revision_id;
         } catch (error) {
             this.logError('[飞书API] 更新文档块失败:', error, {
                 requestUrl: url,
@@ -1094,7 +1105,8 @@ export class FeishuApiClient {
         documentId: string, 
         imageInfos: ImageInfo[], 
         onProgress?: (status: string) => void,
-        generatedImages?: ReadonlyMap<string, GeneratedImage>
+        generatedImages?: ReadonlyMap<string, GeneratedImage>,
+        updateOptions?: ImageUpdateOptions
     ): Promise<void> {
         if (!imageInfos || imageInfos.length === 0) {
             return;
@@ -1103,10 +1115,14 @@ export class FeishuApiClient {
         try {
             // 步骤一：获取文档所有块
             onProgress?.('正在获取文档结构...');
-            const blocks = await this.getDocumentBlocks(documentId);
+            const blocks = updateOptions?.blocks ?? await this.getDocumentBlocks(documentId);
             
             // 找到图片块
             const imageBlocks = blocks.filter(block => block.block_type === 27); // 27表示图片块
+            if (updateOptions && imageBlocks.length !== imageInfos.length) {
+                throw new Error('飞书转换的图片块数量与本地图片数量不一致，已停止更新');
+            }
+            let revision = updateOptions?.revision ?? -1;
             if (imageInfos.slice(imageBlocks.length).some(info => generatedImages?.has(info.fileName))) {
                 throw new Error('飞书导入结果缺少预处理生成的图片块');
             }
@@ -1157,15 +1173,21 @@ export class FeishuApiClient {
                     );
                     
                     // 更新文档块
-                    await this.updateDocumentBlock(
+                    const nextRevision = await this.updateDocumentBlock(
                         documentId, 
                         imageBlock.block_id, 
                         fileToken,
-                        imageInfo
+                        imageInfo,
+                        revision
                     );
+                    if (updateOptions) {
+                        if (!Number.isInteger(nextRevision) || nextRevision < 1) throw new Error('图片更新响应缺少文档版本号');
+                        revision = nextRevision;
+                        updateOptions.onRevision(revision);
+                    }
                     
                 } catch (error) {
-                    if (generatedImages?.has(imageInfo.fileName)) throw error;
+                    if (updateOptions || generatedImages?.has(imageInfo.fileName)) throw error;
                     const errorMessage = error instanceof Error ? error.message : String(error);
                     console.error(`[飞书API] 处理图片 ${imageInfo.fileName} 失败:`, errorMessage);
                     this.debug(`[飞书API] 处理图片 ${imageInfo.fileName} 失败详情:`, {
@@ -2236,7 +2258,22 @@ export class FeishuApiClient {
      * @param documentId 文档ID
      * @returns 文档块数组（包含完整的块信息）
      */
-    async getDocumentBlocksDetailed(documentId: string): Promise<DocumentBlock[]> {
+    async getDocumentRevision(documentId: string): Promise<number> {
+        const token = await this.getAccessToken();
+        this.apiCallCountCallback?.();
+        const response = await requestUrl({
+            url: `${this.baseUrl}/docx/v1/documents/${documentId}`,
+            method: 'GET',
+            headers: { Authorization: `Bearer ${token}` }
+        });
+        const result: FeishuApiResponse<{ document: { revision_id: number } }> = response.json;
+        if (result.code !== 0) throw new Error(`获取文档版本失败: ${result.msg}`);
+        const revision = result.data.document.revision_id;
+        if (!Number.isInteger(revision) || revision < 1) throw new Error('飞书未返回有效的文档版本号');
+        return revision;
+    }
+
+    async getDocumentBlocksDetailed(documentId: string, revision = -1): Promise<DocumentBlock[]> {
         try {
             const token = await this.getAccessToken();
             const allBlocks: DocumentBlock[] = [];
@@ -2247,6 +2284,7 @@ export class FeishuApiClient {
                 const url = `${this.baseUrl}/docx/v1/documents/${documentId}/blocks`;
                 const params: Record<string, string> = {
                     page_size: '500',
+                    document_revision_id: String(revision),
                     user_id_type: 'user_id'
                 };
                 
@@ -2461,15 +2499,17 @@ export class FeishuApiClient {
         parentId: string,
         index: number,
         childrenIds: string[],
-        descendants: DocumentBlockPayload[]
-    ): Promise<unknown> {
+        descendants: DocumentBlockPayload[],
+        revision = -1
+    ): Promise<DescendantsResponse> {
         try {
             const token = await this.getAccessToken();
-            const url = `${this.baseUrl}/docx/v1/documents/${documentId}/blocks/${parentId}/descendant?document_revision_id=-1`;
+            const url = `${this.baseUrl}/docx/v1/documents/${documentId}/blocks/${parentId}/descendant?document_revision_id=${revision}`;
 
             const requestBody = {
                 children_id: childrenIds,
-                descendants: descendants,
+                // Relationships are encoded by children; these two fields are response-only.
+                descendants: descendants.map(({ parent_id, revision_id, ...payload }) => payload),
                 index
             };
 
@@ -2497,7 +2537,7 @@ export class FeishuApiClient {
             }
 
             const response = await requestUrl(requestParam);
-            const result: FeishuApiResponse<unknown> = response.json;
+            const result: FeishuApiResponse<DescendantsResponse> = response.json;
 
             this.debug('[飞书API] 创建嵌套文档块原始响应:', {
                 status: response.status,
@@ -2552,11 +2592,11 @@ export class FeishuApiClient {
      * @param blockIds 要删除的块ID数组
      * @returns 删除结果
      */
-    async batchDeleteDocumentBlocks(documentId: string, parentId: string, startIndex: number, endIndex: number): Promise<unknown> {
+    async batchDeleteDocumentBlocks(documentId: string, parentId: string, startIndex: number, endIndex: number, revision = -1): Promise<unknown> {
         return this.queueDeleteRequest(async () => {
             try {
                 const token = await this.getAccessToken();
-                const url = `${this.baseUrl}/docx/v1/documents/${documentId}/blocks/${parentId}/children/batch_delete?document_revision_id=-1`;
+                const url = `${this.baseUrl}/docx/v1/documents/${documentId}/blocks/${parentId}/children/batch_delete?document_revision_id=${revision}`;
 
                 const deleteBody = {
                     start_index: startIndex,
