@@ -1,5 +1,7 @@
 # ObShare - Obsidian 飞书云文档同步分享插件
 
+> 本 fork 的 1.2.2 增加可配置的上传预处理脚本：按顺序运行库内 JavaScript 文件，支持异步处理、生成临时图片，以及上传前预览。Excalidraw → PNG 作为独立示例脚本提供。配置、脚本接口和安装方法见 [上传预处理指南](PREPROCESSING.md)。
+
 > 🚀 **一次配置，轻松使用** - 基于飞书云文档的 Obsidian 笔记同步与分享方案
 
 [中文](README.md)|[English](README-EN.md)

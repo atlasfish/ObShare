@@ -5,6 +5,8 @@ import { CalloutConverter, CalloutInfo } from './callout-converter';
 import { YamlProcessor, YamlInfo } from './yaml-processor';
 import { LinkProcessor, UploadResult } from './link-processor';
 import { MermaidConverter, MermaidInfo, MermaidConversionResult } from './mermaid-converter';
+import { UploadPreprocessor, GeneratedImage, PreprocessResult, parseScriptPaths } from './upload-preprocessor';
+import { findImageRanges } from './markdown-embeds';
 
 // 通知管理器
 class NotificationManager {
@@ -84,6 +86,8 @@ interface FeishuUploaderSettings {
 	lastResetDate: string; // 上次重置日期（YYYY-MM格式）
 	enableDoubleLinkMode: boolean; // 是否启用双链模式
 	debugLoggingEnabled: boolean; // 是否启用调试日志
+	preprocessingEnabled: boolean;
+	preprocessingScriptPaths: string;
 }
 
 // 默认设置
@@ -98,7 +102,9 @@ const DEFAULT_SETTINGS: FeishuUploaderSettings = {
 	apiCallCount: 0,
 	lastResetDate: new Date().toISOString().substring(0, 7), // 当前年月
 	enableDoubleLinkMode: true, // 默认启用双链模式
-	debugLoggingEnabled: false
+	debugLoggingEnabled: false,
+	preprocessingEnabled: false,
+	preprocessingScriptPaths: ''
 }
 
 type SensitiveField = keyof Pick<FeishuUploaderSettings, 'appId' | 'appSecret' | 'folderToken' | 'userId'>;
@@ -173,6 +179,11 @@ export default class FeishuUploaderPlugin extends Plugin {
 			callback: () => {
 				void this.uploadCurrentDocument();
 			}
+		});
+		this.addCommand({
+			id: 'preview-upload-preprocessing',
+			name: '预览上传预处理',
+			callback: () => { void this.previewPreprocessing(); }
 		});
 
 
@@ -337,6 +348,7 @@ export default class FeishuUploaderPlugin extends Plugin {
 	 */
 	private collectAllImageInfos(content: string): CollectedImageInfo[] {
 		const allImages: CollectedImageInfo[] = [];
+		const imageStarts = new Set(findImageRanges(content).map(range => range.from));
 
 		// 1. 收集Mermaid图表信息
 		if (MermaidConverter.hasMermaidCharts(content)) {
@@ -367,6 +379,7 @@ export default class FeishuUploaderPlugin extends Plugin {
 		let match;
 		
 		while ((match = obsidianImageRegex.exec(content)) !== null) {
+			if (!imageStarts.has(match.index)) continue;
 			const fileName = match[1];
 			if (!fileName) {
 				continue;
@@ -388,6 +401,7 @@ export default class FeishuUploaderPlugin extends Plugin {
 		const markdownImageRegex = /!\[([^\]]*)\]\(([^)\s]+)(?:\s+"([^"]*)")?\)/g;
 		
 		while ((match = markdownImageRegex.exec(content)) !== null) {
+			if (!imageStarts.has(match.index)) continue;
 			const alt = match[1] ?? '';
 			const path = match[2];
 			const title = match[3];
@@ -445,9 +459,27 @@ export default class FeishuUploaderPlugin extends Plugin {
 
 
 
-	/**
-	 * 上传指定文件
-	 */
+	private loadPreprocessor(): Promise<UploadPreprocessor> {
+		return UploadPreprocessor.load(this.app, this.settings.preprocessingEnabled
+			? parseScriptPaths(this.settings.preprocessingScriptPaths) : []);
+	}
+
+	async previewPreprocessing(): Promise<void> {
+		const file = this.app.workspace.getActiveFile();
+		if (!file || file.extension !== 'md') {
+			new Notice('请先打开一个 Markdown 文档');
+			return;
+		}
+		try {
+			const preprocessor = await this.loadPreprocessor();
+			const result = await preprocessor.run(await this.app.vault.read(file), file);
+			new PreprocessingPreviewModal(this.app, file, result).open();
+		} catch (error) {
+			new Notice(error instanceof Error ? error.message : String(error), 8000);
+		}
+	}
+
+	/** 上传指定文件，先处理上传副本，再调用飞书。 */
 	async uploadFile(file: TFile): Promise<void> {
 		
 		// 根据上传模式选择客户端
@@ -479,12 +511,16 @@ export default class FeishuUploaderPlugin extends Plugin {
 
 			// 步骤2: 分析文档 (10-15%)
 			progressModal.updateProgress(10, '正在分析文档格式...');
+			const preprocessor = await this.loadPreprocessor();
+			progressModal.updateProgress(12, '正在执行上传预处理...');
+			const prepared = await preprocessor.run(content, file);
+			content = prepared.content;
 			
-			// 处理双链引用（在YAML处理之后，其他处理之前）(15-35%)
+			// 预处理之后、YAML 和图片处理之前上传双链引用 (15-35%)
 			let linkProcessor: LinkProcessor | null = null;
 			let linkResult: LinkProcessResult | null = null;
 			if (this.settings.enableDoubleLinkMode && this.feishuClient) {
-				linkProcessor = new LinkProcessor(this.app, this.feishuClient, this);
+				linkProcessor = new LinkProcessor(this.app, this.feishuClient, this, preprocessor);
 				linkResult = await linkProcessor.processWikiLinks(content, (status) => {
 					// 双链处理占用15%-35%的进度区间，共20%
 					const baseProgress = 15;
@@ -630,7 +666,7 @@ export default class FeishuUploaderPlugin extends Plugin {
 
 			// 步骤4: 正常上传流程 (55-85%)
 			progressModal.updateProgress(55, '正在上传文档到飞书...');
-			const result = await this.performNormalUpload(file, content, hasImages, orderedImageInfos, progressModal);
+			const result = await this.performNormalUpload(file, content, hasImages, orderedImageInfos, progressModal, prepared.images);
 
 
 			// 步骤4: 处理YAML和Callout (75-90%)
@@ -738,7 +774,8 @@ export default class FeishuUploaderPlugin extends Plugin {
 		content: string, 
 		hasImages: boolean, 
 		orderedImageInfos: ImageInfo[], 
-		progressModal: UploadProgressModal
+		progressModal: UploadProgressModal,
+		generatedImages?: ReadonlyMap<string, GeneratedImage>
 	): Promise<{ token: string; url: string }> {
 		let result: { token: string; url: string };
 		
@@ -764,7 +801,8 @@ export default class FeishuUploaderPlugin extends Plugin {
 					}
 					progressModal.updateProgress(currentProgress, status);
 				},
-				orderedImageInfos
+				orderedImageInfos,
+				generatedImages
 			);
 		} else {
 			// 无图片：使用简单模式
@@ -1696,6 +1734,35 @@ class FeishuUploaderSettingTab extends PluginSettingTab {
 					void this.plugin.saveSettings();
 				}));
 
+		new Setting(containerEl).setName('上传预处理').setHeading();
+		new Setting(containerEl)
+			.setName('启用预处理脚本')
+			.setDesc('在双链、YAML 和图片处理前运行脚本，包含双链上传的子文档。脚本拥有 Obsidian 插件权限，仅启用你信任的脚本。')
+			.addToggle(toggle => toggle
+				.setValue(this.plugin.settings.preprocessingEnabled)
+				.onChange(value => {
+					this.plugin.settings.preprocessingEnabled = value;
+					void this.plugin.saveSettings();
+				}));
+		new Setting(containerEl)
+			.setName('预处理脚本路径')
+			.setDesc('每行一个库内 .js 文件相对路径，按从上到下的顺序执行。脚本以 module.exports 导出异步函数并返回 Markdown 字符串；每次上传重新读取。')
+			.addTextArea(text => { text
+				.setPlaceholder('Scripts/ObShare/excalidraw-to-png.js\nScripts/ObShare/cleanup.js')
+				.setValue(this.plugin.settings.preprocessingScriptPaths)
+				.onChange(value => {
+					this.plugin.settings.preprocessingScriptPaths = value;
+					void this.plugin.saveSettings();
+				});
+				text.inputEl.rows = 4;
+				text.inputEl.cols = 40;
+			});
+		new Setting(containerEl)
+			.setName('预览当前文档')
+			.setDesc('执行已启用的脚本，查看预处理 Markdown 和生成的图片；不会调用飞书上传接口。')
+			.addButton(button => button.setButtonText('预览预处理')
+				.onClick(() => { void this.plugin.previewPreprocessing(); }));
+
 		// 测试连接按钮
 		new Setting(containerEl)
 			.setName('测试连接')
@@ -2266,6 +2333,24 @@ class UploadProgressModal extends Modal {
 		const { contentEl } = this;
 		contentEl.empty();
 	}
+}
+
+class PreprocessingPreviewModal extends Modal {
+	constructor(app: App, private file: TFile, private result: PreprocessResult) { super(app); }
+	override onOpen(): void {
+		this.titleEl.setText(`上传预处理预览：${this.file.basename}`);
+		this.contentEl.createEl('p', { text: `生成图片 ${this.result.images.size} 张。以下内容是预处理结果，后续仍会经过 ObShare 的双链、YAML 和图片转换。` });
+		const source = this.contentEl.createEl('textarea', { cls: 'obshare-preprocessing-preview' });
+		source.value = this.result.content;
+		source.readOnly = true;
+		for (const [path, image] of this.result.images) {
+			this.contentEl.createEl('p', { text: path });
+			const preview = this.contentEl.createEl('img', { cls: 'obshare-preprocessing-image' });
+			const mime = path.endsWith('.jpg') ? 'image/jpeg' : `image/${path.split('.').pop()}`;
+			preview.src = `data:${mime};base64,${image.base64}`;
+		}
+	}
+	override onClose(): void { this.contentEl.empty(); }
 }
 
 class UserAgreementModal extends Modal {

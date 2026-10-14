@@ -1,5 +1,7 @@
 import { App, TFile, requestUrl, RequestUrlParam } from 'obsidian';
 import { SvgConverter } from './svg-converter';
+import type { GeneratedImage } from './upload-preprocessor';
+import { findImageRanges } from './markdown-embeds';
 
 // 飞书API响应接口
 export interface FeishuApiResponse<T = unknown> {
@@ -1091,7 +1093,8 @@ export class FeishuApiClient {
     async processImagesInDocument(
         documentId: string, 
         imageInfos: ImageInfo[], 
-        onProgress?: (status: string) => void
+        onProgress?: (status: string) => void,
+        generatedImages?: ReadonlyMap<string, GeneratedImage>
     ): Promise<void> {
         if (!imageInfos || imageInfos.length === 0) {
             return;
@@ -1104,6 +1107,9 @@ export class FeishuApiClient {
             
             // 找到图片块
             const imageBlocks = blocks.filter(block => block.block_type === 27); // 27表示图片块
+            if (imageInfos.slice(imageBlocks.length).some(info => generatedImages?.has(info.fileName))) {
+                throw new Error('飞书导入结果缺少预处理生成的图片块');
+            }
             
             if (imageBlocks.length === 0) {
                 return;
@@ -1122,7 +1128,7 @@ export class FeishuApiClient {
                 
                 try {
                     // 读取本地图片文件并转换为base64
-                    const fileResult = await this.readImageFileAsBase64(imageInfo.path);
+                    const fileResult = await this.readImageFileAsBase64(imageInfo.path, generatedImages);
                     if (!fileResult) {
                         throw new Error(`无法读取图片文件: ${imageInfo.path}`);
                     }
@@ -1159,6 +1165,7 @@ export class FeishuApiClient {
                     );
                     
                 } catch (error) {
+                    if (generatedImages?.has(imageInfo.fileName)) throw error;
                     const errorMessage = error instanceof Error ? error.message : String(error);
                     console.error(`[飞书API] 处理图片 ${imageInfo.fileName} 失败:`, errorMessage);
                     this.debug(`[飞书API] 处理图片 ${imageInfo.fileName} 失败详情:`, {
@@ -1283,8 +1290,22 @@ export class FeishuApiClient {
      * @param imagePath 图片文件路径或URL
      * @returns base64编码的图片内容和SVG转换选项（如果是SVG）
      */
-    private async readImageFileAsBase64(imagePath: string): Promise<{ base64: string; width?: number; height?: number; svgConvertOptions?: { originalWidth: number; originalHeight: number; scale: number } } | null> {
+    private async readImageFileAsBase64(imagePath: string, generatedImages?: ReadonlyMap<string, GeneratedImage>): Promise<{ base64: string; width?: number; height?: number; svgConvertOptions?: { originalWidth: number; originalHeight: number; scale: number } } | null> {
         try {
+            const generated = generatedImages?.get(imagePath.split(/[/\\]/).pop() ?? imagePath);
+            if (generated) {
+                const dimensions = await this.getPngDimensionsFromBase64(generated.base64);
+                let width = generated.width ?? dimensions?.width;
+                let height = generated.height ?? dimensions?.height;
+                if (dimensions && generated.width !== undefined && generated.height === undefined) {
+                    height = Math.round(generated.width * dimensions.height / dimensions.width);
+                } else if (dimensions && generated.height !== undefined && generated.width === undefined) {
+                    width = Math.round(generated.height * dimensions.width / dimensions.height);
+                }
+                return { base64: generated.base64,
+                    ...(width !== undefined ? { width } : {}),
+                    ...(height !== undefined ? { height } : {}) };
+            }
             // 处理远程图片
             if (imagePath.startsWith('http://') || imagePath.startsWith('https://')) {
                 this.debug('[飞书API] 检测到远程图片，开始下载:', imagePath);
@@ -1524,6 +1545,7 @@ export class FeishuApiClient {
         
         // 先转换Obsidian图片语法为标准Markdown语法
         const convertedContent = FeishuApiClient.convertObsidianImageSyntax(markdownContent);
+        const imageStarts = new Set(findImageRanges(convertedContent).map(range => range.from));
         
         // 匹配标准Markdown格式的图片: ![alt](path) 或 ![alt](path "title")
         const markdownImageRegex = /!\[([^\]]*)\]\(([^)\s]+)(?:\s+"([^"]*)")?\)/g;
@@ -1533,6 +1555,7 @@ export class FeishuApiClient {
         
         // 处理标准Markdown格式的图片（现在包括转换后的Obsidian图片）
         while ((match = markdownImageRegex.exec(convertedContent)) !== null) {
+            if (!imageStarts.has(match.index)) continue;
             const path = match[2];
             
             if (!path) continue;
@@ -1618,7 +1641,8 @@ export class FeishuApiClient {
         markdownContent: string, 
         documentId?: string,
         onProgress?: (status: string) => void,
-        preProcessedImageInfos?: ImageInfo[]
+        preProcessedImageInfos?: ImageInfo[],
+        generatedImages?: ReadonlyMap<string, GeneratedImage>
     ): Promise<{ token: string; url: string }> {
         let mdFileToken: string | null = null;
         
@@ -1662,7 +1686,7 @@ export class FeishuApiClient {
             
             if (imageInfos.length > 0) {
                 onProgress?.('正在处理文档中的图片...');
-                await this.processImagesInDocument(result.token, imageInfos, onProgress);
+                await this.processImagesInDocument(result.token, imageInfos, onProgress, generatedImages);
             }
             
             // 转换完成后，静默删除MD文件（用户不会察觉）
@@ -1716,7 +1740,8 @@ export class FeishuApiClient {
         fileName: string, 
         markdownContent: string, 
         documentId?: string,
-        onProgress?: (status: string) => void
+        onProgress?: (status: string) => void,
+        generatedImages?: ReadonlyMap<string, GeneratedImage>
     ): Promise<{ token: string; url: string }> {
         let mdFileToken: string | null = null;
         
@@ -1754,7 +1779,7 @@ export class FeishuApiClient {
             const imageInfos = FeishuApiClient.extractImageInfoFromMarkdown(markdownContent, basePath);
             if (imageInfos.length > 0) {
                 onProgress?.('正在处理文档中的图片...');
-                await this.processImagesInDocument(result.token, imageInfos, onProgress);
+                await this.processImagesInDocument(result.token, imageInfos, onProgress, generatedImages);
             }
             
             // 转换完成后，静默删除MD文件（用户不会察觉）

@@ -1,4 +1,6 @@
 # ObShare - Obsidian Feishu Docs Sync & Share Plugin
+
+Version 1.2.2 of this fork adds configurable upload preprocessing scripts, an upload preview, and a standalone Excalidraw-to-PNG example. See [PREPROCESSING.md](PREPROCESSING.md) for configuration and the script API.
 🚀 One-time Setup, Easy to Use - A Feishu Doc-based solution for Obsidian note syncing and sharing 
 
 [中文](README.md)|[English](README-EN.md)
@@ -125,6 +127,3 @@ This project is licensed under the MIT License .
 Obsidian - The finest note-taking app
 Feishu Open Platform - Providing powerful APIs and exceptionally clear documentation
 All contributors and users for your support
-
-
-

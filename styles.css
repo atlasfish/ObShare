@@ -919,3 +919,14 @@
 		gap: 4px;
 	}
 }
+.obshare-preprocessing-preview {
+    width: 100%;
+    min-height: 320px;
+    font-family: var(--font-monospace);
+    resize: vertical;
+}
+
+.obshare-preprocessing-image {
+    max-width: 100%;
+    height: auto;
+}

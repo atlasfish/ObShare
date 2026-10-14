@@ -1,5 +1,6 @@
 import { App, TFile, Vault } from 'obsidian';
 import { FeishuApiClient } from './feishu-api';
+import { PreprocessError, UploadPreprocessor } from './upload-preprocessor';
 
 /**
  * 双链信息接口
@@ -76,7 +77,7 @@ export class LinkProcessor {
         });
     }
 
-    constructor(app: App, feishuClient: FeishuApiClient, plugin: LinkProcessorPluginContext) {
+    constructor(app: App, feishuClient: FeishuApiClient, plugin: LinkProcessorPluginContext, private preprocessor?: UploadPreprocessor) {
         this.app = app;
         this.vault = app.vault;
         this.feishuClient = feishuClient;
@@ -97,6 +98,8 @@ export class LinkProcessor {
         let match;
         while ((match = wikiLinkRegex.exec(content)) !== null) {
             if (!match[1]) continue; // 跳过无效匹配
+            // Embedded files are handled by the image pipeline, not uploaded as linked notes.
+            if (content[match.index - 1] === '!') continue;
             
             const title = match[1].trim(); // 文档标题
             const originalText = match[0]; // 完整的双链语法
@@ -214,6 +217,7 @@ export class LinkProcessor {
                     }
                 }
             } catch (error) {
+                if (error instanceof PreprocessError) throw error;
                 this.logError(`[双链处理] 文档上传失败: ${wikiLink.title}`, error, {
                     title: wikiLink.title
                 });
@@ -252,13 +256,18 @@ export class LinkProcessor {
 
         try {
             // 读取文件内容
-            const content = await this.app.vault.read(wikiLink.file);
+            const originalContent = await this.app.vault.read(wikiLink.file);
+            const prepared = this.preprocessor
+                ? await this.preprocessor.run(originalContent, wikiLink.file)
+                : { content: originalContent, images: undefined };
             
             // 直接使用飞书客户端上传文档，传递正确的folderToken
             const uploadResult = await this.feishuClient.uploadDocument(
                 wikiLink.file.name,
-                content,
-                this.plugin.settings.folderToken
+                prepared.content,
+                this.plugin.settings.folderToken,
+                undefined,
+                prepared.images
             );
             
             const result: UploadResult = {
@@ -273,6 +282,7 @@ export class LinkProcessor {
             return result;
             
         } catch (error) {
+            if (error instanceof PreprocessError) throw error;
             this.logError(`[双链处理] 文档上传失败: ${wikiLink.title}`, error, {
                 title: wikiLink.title
             });

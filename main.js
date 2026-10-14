@@ -4,9 +4,11 @@ if you want to view the source, please visit the github repository of this plugi
 */
 
 "use strict";
+var __create = Object.create;
 var __defProp = Object.defineProperty;
 var __getOwnPropDesc = Object.getOwnPropertyDescriptor;
 var __getOwnPropNames = Object.getOwnPropertyNames;
+var __getProtoOf = Object.getPrototypeOf;
 var __hasOwnProp = Object.prototype.hasOwnProperty;
 var __export = (target, all) => {
   for (var name in all)
@@ -20,6 +22,14 @@ var __copyProps = (to, from, except, desc) => {
   }
   return to;
 };
+var __toESM = (mod, isNodeMode, target) => (target = mod != null ? __create(__getProtoOf(mod)) : {}, __copyProps(
+  // If the importer is in node compatibility mode or this is not an ESM
+  // file that has been converted to a CommonJS file using a Babel-
+  // compatible transform (i.e. "__esModule" has not been set), then set
+  // "default" to the CommonJS "module.exports" for node compatibility.
+  isNodeMode || !mod || !mod.__esModule ? __defProp(target, "default", { value: mod, enumerable: true }) : target,
+  mod
+));
 var __toCommonJS = (mod) => __copyProps(__defProp({}, "__esModule", { value: true }), mod);
 
 // main.ts
@@ -28,7 +38,7 @@ __export(main_exports, {
   default: () => FeishuUploaderPlugin
 });
 module.exports = __toCommonJS(main_exports);
-var import_obsidian4 = require("obsidian");
+var import_obsidian5 = require("obsidian");
 
 // feishu-api.ts
 var import_obsidian = require("obsidian");
@@ -218,6 +228,2033 @@ var SvgConverter = class {
 SvgConverter.DEFAULT_WIDTH = 800;
 SvgConverter.DEFAULT_HEIGHT = 600;
 SvgConverter.DEFAULT_SCALE = 4;
+
+// node_modules/@lezer/markdown/dist/index.js
+var import_common = require("@lezer/common");
+var import_highlight = require("@lezer/highlight");
+var CompositeBlock = class {
+  static create(type, value, from, parentHash, end) {
+    let hash = parentHash + (parentHash << 8) + type + (value << 4) | 0;
+    return new CompositeBlock(type, value, from, hash, end, [], []);
+  }
+  constructor(type, value, from, hash, end, children, positions) {
+    this.type = type;
+    this.value = value;
+    this.from = from;
+    this.hash = hash;
+    this.end = end;
+    this.children = children;
+    this.positions = positions;
+    this.hashProp = [[import_common.NodeProp.contextHash, hash]];
+  }
+  addChild(child, pos) {
+    if (child.prop(import_common.NodeProp.contextHash) != this.hash)
+      child = new import_common.Tree(child.type, child.children, child.positions, child.length, this.hashProp);
+    this.children.push(child);
+    this.positions.push(pos);
+  }
+  toTree(nodeSet, end = this.end) {
+    let last = this.children.length - 1;
+    if (last >= 0)
+      end = Math.max(end, this.positions[last] + this.children[last].length + this.from);
+    return new import_common.Tree(nodeSet.types[this.type], this.children, this.positions, end - this.from).balance({
+      makeTree: (children, positions, length) => new import_common.Tree(import_common.NodeType.none, children, positions, length, this.hashProp)
+    });
+  }
+};
+var Type;
+(function(Type2) {
+  Type2[Type2["Document"] = 1] = "Document";
+  Type2[Type2["CodeBlock"] = 2] = "CodeBlock";
+  Type2[Type2["FencedCode"] = 3] = "FencedCode";
+  Type2[Type2["Blockquote"] = 4] = "Blockquote";
+  Type2[Type2["HorizontalRule"] = 5] = "HorizontalRule";
+  Type2[Type2["BulletList"] = 6] = "BulletList";
+  Type2[Type2["OrderedList"] = 7] = "OrderedList";
+  Type2[Type2["ListItem"] = 8] = "ListItem";
+  Type2[Type2["ATXHeading1"] = 9] = "ATXHeading1";
+  Type2[Type2["ATXHeading2"] = 10] = "ATXHeading2";
+  Type2[Type2["ATXHeading3"] = 11] = "ATXHeading3";
+  Type2[Type2["ATXHeading4"] = 12] = "ATXHeading4";
+  Type2[Type2["ATXHeading5"] = 13] = "ATXHeading5";
+  Type2[Type2["ATXHeading6"] = 14] = "ATXHeading6";
+  Type2[Type2["SetextHeading1"] = 15] = "SetextHeading1";
+  Type2[Type2["SetextHeading2"] = 16] = "SetextHeading2";
+  Type2[Type2["HTMLBlock"] = 17] = "HTMLBlock";
+  Type2[Type2["LinkReference"] = 18] = "LinkReference";
+  Type2[Type2["Paragraph"] = 19] = "Paragraph";
+  Type2[Type2["CommentBlock"] = 20] = "CommentBlock";
+  Type2[Type2["ProcessingInstructionBlock"] = 21] = "ProcessingInstructionBlock";
+  Type2[Type2["Escape"] = 22] = "Escape";
+  Type2[Type2["Entity"] = 23] = "Entity";
+  Type2[Type2["HardBreak"] = 24] = "HardBreak";
+  Type2[Type2["Emphasis"] = 25] = "Emphasis";
+  Type2[Type2["StrongEmphasis"] = 26] = "StrongEmphasis";
+  Type2[Type2["Link"] = 27] = "Link";
+  Type2[Type2["Image"] = 28] = "Image";
+  Type2[Type2["InlineCode"] = 29] = "InlineCode";
+  Type2[Type2["HTMLTag"] = 30] = "HTMLTag";
+  Type2[Type2["Comment"] = 31] = "Comment";
+  Type2[Type2["ProcessingInstruction"] = 32] = "ProcessingInstruction";
+  Type2[Type2["Autolink"] = 33] = "Autolink";
+  Type2[Type2["HeaderMark"] = 34] = "HeaderMark";
+  Type2[Type2["QuoteMark"] = 35] = "QuoteMark";
+  Type2[Type2["ListMark"] = 36] = "ListMark";
+  Type2[Type2["LinkMark"] = 37] = "LinkMark";
+  Type2[Type2["EmphasisMark"] = 38] = "EmphasisMark";
+  Type2[Type2["CodeMark"] = 39] = "CodeMark";
+  Type2[Type2["CodeText"] = 40] = "CodeText";
+  Type2[Type2["CodeInfo"] = 41] = "CodeInfo";
+  Type2[Type2["LinkTitle"] = 42] = "LinkTitle";
+  Type2[Type2["LinkLabel"] = 43] = "LinkLabel";
+  Type2[Type2["URL"] = 44] = "URL";
+})(Type || (Type = {}));
+var LeafBlock = class {
+  /**
+  @internal
+  */
+  constructor(start, content) {
+    this.start = start;
+    this.content = content;
+    this.marks = [];
+    this.parsers = [];
+  }
+};
+var Line = class {
+  constructor() {
+    this.text = "";
+    this.baseIndent = 0;
+    this.basePos = 0;
+    this.depth = 0;
+    this.markers = [];
+    this.pos = 0;
+    this.indent = 0;
+    this.next = -1;
+  }
+  /**
+  @internal
+  */
+  forward() {
+    if (this.basePos > this.pos)
+      this.forwardInner();
+  }
+  /**
+  @internal
+  */
+  forwardInner() {
+    let newPos = this.skipSpace(this.basePos);
+    this.indent = this.countIndent(newPos, this.pos, this.indent);
+    this.pos = newPos;
+    this.next = newPos == this.text.length ? -1 : this.text.charCodeAt(newPos);
+  }
+  /**
+  Skip whitespace after the given position, return the position of
+  the next non-space character or the end of the line if there's
+  only space after `from`.
+  */
+  skipSpace(from) {
+    return skipSpace(this.text, from);
+  }
+  /**
+  @internal
+  */
+  reset(text) {
+    this.text = text;
+    this.baseIndent = this.basePos = this.pos = this.indent = 0;
+    this.forwardInner();
+    this.depth = 1;
+    while (this.markers.length)
+      this.markers.pop();
+  }
+  /**
+  Move the line's base position forward to the given position.
+  This should only be called by composite [block
+  parsers](#BlockParser.parse) or [markup skipping
+  functions](#NodeSpec.composite).
+  */
+  moveBase(to) {
+    this.basePos = to;
+    this.baseIndent = this.countIndent(to, this.pos, this.indent);
+  }
+  /**
+  Move the line's base position forward to the given _column_.
+  */
+  moveBaseColumn(indent) {
+    this.baseIndent = indent;
+    this.basePos = this.findColumn(indent);
+  }
+  /**
+  Store a composite-block-level marker. Should be called from
+  [markup skipping functions](#NodeSpec.composite) when they
+  consume any non-whitespace characters.
+  */
+  addMarker(elt2) {
+    this.markers.push(elt2);
+  }
+  /**
+  Find the column position at `to`, optionally starting at a given
+  position and column.
+  */
+  countIndent(to, from = 0, indent = 0) {
+    for (let i = from; i < to; i++)
+      indent += this.text.charCodeAt(i) == 9 ? 4 - indent % 4 : 1;
+    return indent;
+  }
+  /**
+  Find the position corresponding to the given column.
+  */
+  findColumn(goal) {
+    let i = 0;
+    for (let indent = 0; i < this.text.length && indent < goal; i++)
+      indent += this.text.charCodeAt(i) == 9 ? 4 - indent % 4 : 1;
+    return i;
+  }
+  /**
+  @internal
+  */
+  scrub() {
+    if (!this.baseIndent)
+      return this.text;
+    let result = "";
+    for (let i = 0; i < this.basePos; i++)
+      result += " ";
+    return result + this.text.slice(this.basePos);
+  }
+};
+function skipForList(bl, cx, line) {
+  if (line.pos == line.text.length || bl != cx.block && line.indent >= cx.stack[line.depth + 1].value + line.baseIndent)
+    return true;
+  if (line.indent >= line.baseIndent + 4)
+    return false;
+  let size = (bl.type == Type.OrderedList ? isOrderedList : isBulletList)(line, cx, false);
+  return size > 0 && (bl.type != Type.BulletList || isHorizontalRule(line, cx, false) < 0) && line.text.charCodeAt(line.pos + size - 1) == bl.value;
+}
+var DefaultSkipMarkup = {
+  [Type.Blockquote](bl, cx, line) {
+    if (line.next != 62)
+      return false;
+    line.markers.push(elt(Type.QuoteMark, cx.lineStart + line.pos, cx.lineStart + line.pos + 1));
+    line.moveBase(line.pos + (space(line.text.charCodeAt(line.pos + 1)) ? 2 : 1));
+    bl.end = cx.lineStart + line.text.length;
+    return true;
+  },
+  [Type.ListItem](bl, _cx, line) {
+    if (line.indent < line.baseIndent + bl.value && line.next > -1)
+      return false;
+    line.moveBaseColumn(line.baseIndent + bl.value);
+    return true;
+  },
+  [Type.OrderedList]: skipForList,
+  [Type.BulletList]: skipForList,
+  [Type.Document]() {
+    return true;
+  }
+};
+function space(ch) {
+  return ch == 32 || ch == 9 || ch == 10 || ch == 13;
+}
+function skipSpace(line, i = 0) {
+  while (i < line.length && space(line.charCodeAt(i)))
+    i++;
+  return i;
+}
+function skipSpaceBack(line, i, to) {
+  while (i > to && space(line.charCodeAt(i - 1)))
+    i--;
+  return i;
+}
+function isFencedCode(line) {
+  if (line.next != 96 && line.next != 126)
+    return -1;
+  let pos = line.pos + 1;
+  while (pos < line.text.length && line.text.charCodeAt(pos) == line.next)
+    pos++;
+  if (pos < line.pos + 3)
+    return -1;
+  if (line.next == 96) {
+    for (let i = pos; i < line.text.length; i++)
+      if (line.text.charCodeAt(i) == 96)
+        return -1;
+  }
+  return pos;
+}
+function isBlockquote(line) {
+  return line.next != 62 ? -1 : line.text.charCodeAt(line.pos + 1) == 32 ? 2 : 1;
+}
+function isHorizontalRule(line, cx, breaking) {
+  if (line.next != 42 && line.next != 45 && line.next != 95)
+    return -1;
+  let count = 1;
+  for (let pos = line.pos + 1; pos < line.text.length; pos++) {
+    let ch = line.text.charCodeAt(pos);
+    if (ch == line.next)
+      count++;
+    else if (!space(ch))
+      return -1;
+  }
+  if (breaking && line.next == 45 && isSetextUnderline(line) > -1 && line.depth == cx.stack.length && cx.parser.leafBlockParsers.indexOf(DefaultLeafBlocks.SetextHeading) > -1)
+    return -1;
+  return count < 3 ? -1 : 1;
+}
+function inList(cx, type) {
+  for (let i = cx.stack.length - 1; i >= 0; i--)
+    if (cx.stack[i].type == type)
+      return true;
+  return false;
+}
+function isBulletList(line, cx, breaking) {
+  return (line.next == 45 || line.next == 43 || line.next == 42) && (line.pos == line.text.length - 1 || space(line.text.charCodeAt(line.pos + 1))) && (!breaking || inList(cx, Type.BulletList) || line.skipSpace(line.pos + 2) < line.text.length) ? 1 : -1;
+}
+function isOrderedList(line, cx, breaking) {
+  let pos = line.pos, next = line.next;
+  for (; ; ) {
+    if (next >= 48 && next <= 57)
+      pos++;
+    else
+      break;
+    if (pos == line.text.length)
+      return -1;
+    next = line.text.charCodeAt(pos);
+  }
+  if (pos == line.pos || pos > line.pos + 9 || next != 46 && next != 41 || pos < line.text.length - 1 && !space(line.text.charCodeAt(pos + 1)) || breaking && !inList(cx, Type.OrderedList) && (line.skipSpace(pos + 1) == line.text.length || pos > line.pos + 1 || line.next != 49))
+    return -1;
+  return pos + 1 - line.pos;
+}
+function isAtxHeading(line) {
+  if (line.next != 35)
+    return -1;
+  let pos = line.pos + 1;
+  while (pos < line.text.length && line.text.charCodeAt(pos) == 35)
+    pos++;
+  if (pos < line.text.length && line.text.charCodeAt(pos) != 32)
+    return -1;
+  let size = pos - line.pos;
+  return size > 6 ? -1 : size;
+}
+function isSetextUnderline(line) {
+  if (line.next != 45 && line.next != 61 || line.indent >= line.baseIndent + 4)
+    return -1;
+  let pos = line.pos + 1;
+  while (pos < line.text.length && line.text.charCodeAt(pos) == line.next)
+    pos++;
+  let end = pos;
+  while (pos < line.text.length && space(line.text.charCodeAt(pos)))
+    pos++;
+  return pos == line.text.length ? end : -1;
+}
+var EmptyLine = /^[ \t]*$/;
+var CommentEnd = /-->/;
+var ProcessingEnd = /\?>/;
+var HTMLBlockStyle = [
+  [/^<(?:script|pre|style)(?:\s|>|$)/i, /<\/(?:script|pre|style)>/i],
+  [/^\s*<!--/, CommentEnd],
+  [/^\s*<\?/, ProcessingEnd],
+  [/^\s*<![A-Z]/, />/],
+  [/^\s*<!\[CDATA\[/, /\]\]>/],
+  [/^\s*<\/?(?:address|article|aside|base|basefont|blockquote|body|caption|center|col|colgroup|dd|details|dialog|dir|div|dl|dt|fieldset|figcaption|figure|footer|form|frame|frameset|h1|h2|h3|h4|h5|h6|head|header|hr|html|iframe|legend|li|link|main|menu|menuitem|nav|noframes|ol|optgroup|option|p|param|section|source|summary|table|tbody|td|tfoot|th|thead|title|tr|track|ul)(?:\s|\/?>|$)/i, EmptyLine],
+  [/^\s*(?:<\/[a-z][\w-]*\s*>|<[a-z][\w-]*(\s+[a-z:_][\w-.]*(?:\s*=\s*(?:[^\s"'=<>`]+|'[^']*'|"[^"]*"))?)*\s*>)\s*$/i, EmptyLine]
+];
+function isHTMLBlock(line, _cx, breaking) {
+  if (line.next != 60)
+    return -1;
+  let rest = line.text.slice(line.pos);
+  for (let i = 0, e = HTMLBlockStyle.length - (breaking ? 1 : 0); i < e; i++)
+    if (HTMLBlockStyle[i][0].test(rest))
+      return i;
+  return -1;
+}
+function getListIndent(line, pos) {
+  let indentAfter = line.countIndent(pos, line.pos, line.indent);
+  let skipped = line.skipSpace(pos);
+  let indented = line.countIndent(skipped, pos, indentAfter);
+  return indented >= indentAfter + 5 || skipped == line.text.length ? indentAfter + 1 : indented;
+}
+function addCodeText(marks, from, to) {
+  let last = marks.length - 1;
+  if (last >= 0 && marks[last].to == from && marks[last].type == Type.CodeText)
+    marks[last].to = to;
+  else
+    marks.push(elt(Type.CodeText, from, to));
+}
+var DefaultBlockParsers = {
+  LinkReference: void 0,
+  IndentedCode(cx, line) {
+    let base = line.baseIndent + 4;
+    if (line.indent < base)
+      return false;
+    let start = line.findColumn(base);
+    let from = cx.lineStart + start, to = cx.lineStart + line.text.length;
+    let marks = [], pendingMarks = [];
+    addCodeText(marks, from, to);
+    while (cx.nextLine() && line.depth >= cx.stack.length) {
+      if (line.pos == line.text.length) {
+        addCodeText(pendingMarks, cx.lineStart - 1, cx.lineStart);
+        for (let m of line.markers)
+          pendingMarks.push(m);
+      } else if (line.indent < base) {
+        break;
+      } else {
+        if (pendingMarks.length) {
+          for (let m of pendingMarks) {
+            if (m.type == Type.CodeText)
+              addCodeText(marks, m.from, m.to);
+            else
+              marks.push(m);
+          }
+          pendingMarks = [];
+        }
+        addCodeText(marks, cx.lineStart - 1, cx.lineStart);
+        for (let m of line.markers)
+          marks.push(m);
+        to = cx.lineStart + line.text.length;
+        let codeStart = cx.lineStart + line.findColumn(line.baseIndent + 4);
+        if (codeStart < to)
+          addCodeText(marks, codeStart, to);
+      }
+    }
+    if (pendingMarks.length) {
+      pendingMarks = pendingMarks.filter((m) => m.type != Type.CodeText);
+      if (pendingMarks.length)
+        line.markers = pendingMarks.concat(line.markers);
+    }
+    cx.addNode(cx.buffer.writeElements(marks, -from).finish(Type.CodeBlock, to - from), from);
+    return true;
+  },
+  FencedCode(cx, line) {
+    let fenceEnd = isFencedCode(line);
+    if (fenceEnd < 0)
+      return false;
+    let from = cx.lineStart + line.pos, ch = line.next, len = fenceEnd - line.pos;
+    let infoFrom = line.skipSpace(fenceEnd), infoTo = skipSpaceBack(line.text, line.text.length, infoFrom);
+    let marks = [elt(Type.CodeMark, from, from + len)];
+    if (infoFrom < infoTo)
+      marks.push(elt(Type.CodeInfo, cx.lineStart + infoFrom, cx.lineStart + infoTo));
+    for (let first = true, empty = true, hasLine = false; cx.nextLine() && line.depth >= cx.stack.length; first = false) {
+      let i = line.pos;
+      if (line.indent - line.baseIndent < 4)
+        while (i < line.text.length && line.text.charCodeAt(i) == ch)
+          i++;
+      if (i - line.pos >= len && line.skipSpace(i) == line.text.length) {
+        for (let m of line.markers)
+          marks.push(m);
+        if (empty && hasLine)
+          addCodeText(marks, cx.lineStart - 1, cx.lineStart);
+        marks.push(elt(Type.CodeMark, cx.lineStart + line.pos, cx.lineStart + i));
+        cx.nextLine();
+        break;
+      } else {
+        hasLine = true;
+        if (!first) {
+          addCodeText(marks, cx.lineStart - 1, cx.lineStart);
+          empty = false;
+        }
+        for (let m of line.markers)
+          marks.push(m);
+        let textStart = cx.lineStart + line.basePos, textEnd = cx.lineStart + line.text.length;
+        if (textStart < textEnd) {
+          addCodeText(marks, textStart, textEnd);
+          empty = false;
+        }
+      }
+    }
+    cx.addNode(cx.buffer.writeElements(marks, -from).finish(Type.FencedCode, cx.prevLineEnd() - from), from);
+    return true;
+  },
+  Blockquote(cx, line) {
+    let size = isBlockquote(line);
+    if (size < 0)
+      return false;
+    cx.startContext(Type.Blockquote, line.pos);
+    cx.addNode(Type.QuoteMark, cx.lineStart + line.pos, cx.lineStart + line.pos + 1);
+    line.moveBase(line.pos + size);
+    return null;
+  },
+  HorizontalRule(cx, line) {
+    if (isHorizontalRule(line, cx, false) < 0)
+      return false;
+    let from = cx.lineStart + line.pos;
+    cx.nextLine();
+    cx.addNode(Type.HorizontalRule, from);
+    return true;
+  },
+  BulletList(cx, line) {
+    let size = isBulletList(line, cx, false);
+    if (size < 0)
+      return false;
+    if (cx.block.type != Type.BulletList)
+      cx.startContext(Type.BulletList, line.basePos, line.next);
+    let newBase = getListIndent(line, line.pos + 1);
+    cx.startContext(Type.ListItem, line.basePos, newBase - line.baseIndent);
+    cx.addNode(Type.ListMark, cx.lineStart + line.pos, cx.lineStart + line.pos + size);
+    line.moveBaseColumn(newBase);
+    return null;
+  },
+  OrderedList(cx, line) {
+    let size = isOrderedList(line, cx, false);
+    if (size < 0)
+      return false;
+    if (cx.block.type != Type.OrderedList)
+      cx.startContext(Type.OrderedList, line.basePos, line.text.charCodeAt(line.pos + size - 1));
+    let newBase = getListIndent(line, line.pos + size);
+    cx.startContext(Type.ListItem, line.basePos, newBase - line.baseIndent);
+    cx.addNode(Type.ListMark, cx.lineStart + line.pos, cx.lineStart + line.pos + size);
+    line.moveBaseColumn(newBase);
+    return null;
+  },
+  ATXHeading(cx, line) {
+    let size = isAtxHeading(line);
+    if (size < 0)
+      return false;
+    let off = line.pos, from = cx.lineStart + off;
+    let endOfSpace = skipSpaceBack(line.text, line.text.length, off), after = endOfSpace;
+    while (after > off && line.text.charCodeAt(after - 1) == line.next)
+      after--;
+    if (after == endOfSpace || after == off || !space(line.text.charCodeAt(after - 1)))
+      after = line.text.length;
+    let buf = cx.buffer.write(Type.HeaderMark, 0, size).writeElements(cx.parser.parseInline(line.text.slice(off + size + 1, after), from + size + 1), -from);
+    if (after < line.text.length)
+      buf.write(Type.HeaderMark, after - off, endOfSpace - off);
+    let node = buf.finish(Type.ATXHeading1 - 1 + size, line.text.length - off);
+    cx.nextLine();
+    cx.addNode(node, from);
+    return true;
+  },
+  HTMLBlock(cx, line) {
+    let type = isHTMLBlock(line, cx, false);
+    if (type < 0)
+      return false;
+    let from = cx.lineStart + line.pos, end = HTMLBlockStyle[type][1];
+    let marks = [], trailing = end != EmptyLine;
+    while (!end.test(line.text) && cx.nextLine()) {
+      if (line.depth < cx.stack.length) {
+        trailing = false;
+        break;
+      }
+      for (let m of line.markers)
+        marks.push(m);
+    }
+    if (trailing)
+      cx.nextLine();
+    let nodeType = end == CommentEnd ? Type.CommentBlock : end == ProcessingEnd ? Type.ProcessingInstructionBlock : Type.HTMLBlock;
+    let to = cx.prevLineEnd();
+    cx.addNode(cx.buffer.writeElements(marks, -from).finish(nodeType, to - from), from);
+    return true;
+  },
+  SetextHeading: void 0
+  // Specifies relative precedence for block-continue function
+};
+var LinkReferenceParser = class {
+  constructor(leaf) {
+    this.stage = 0;
+    this.elts = [];
+    this.pos = 0;
+    this.start = leaf.start;
+    this.advance(leaf.content);
+  }
+  nextLine(cx, line, leaf) {
+    if (this.stage == -1)
+      return false;
+    let content = leaf.content + "\n" + line.scrub();
+    let finish = this.advance(content);
+    if (finish > -1 && finish < content.length)
+      return this.complete(cx, leaf, finish);
+    return false;
+  }
+  finish(cx, leaf) {
+    if ((this.stage == 2 || this.stage == 3) && skipSpace(leaf.content, this.pos) == leaf.content.length)
+      return this.complete(cx, leaf, leaf.content.length);
+    return false;
+  }
+  complete(cx, leaf, len) {
+    cx.addLeafElement(leaf, elt(Type.LinkReference, this.start, this.start + len, this.elts));
+    return true;
+  }
+  nextStage(elt2) {
+    if (elt2) {
+      this.pos = elt2.to - this.start;
+      this.elts.push(elt2);
+      this.stage++;
+      return true;
+    }
+    if (elt2 === false)
+      this.stage = -1;
+    return false;
+  }
+  advance(content) {
+    for (; ; ) {
+      if (this.stage == -1) {
+        return -1;
+      } else if (this.stage == 0) {
+        if (!this.nextStage(parseLinkLabel(content, this.pos, this.start, true)))
+          return -1;
+        if (content.charCodeAt(this.pos) != 58)
+          return this.stage = -1;
+        this.elts.push(elt(Type.LinkMark, this.pos + this.start, this.pos + this.start + 1));
+        this.pos++;
+      } else if (this.stage == 1) {
+        if (!this.nextStage(parseURL(content, skipSpace(content, this.pos), this.start)))
+          return -1;
+      } else if (this.stage == 2) {
+        let skip = skipSpace(content, this.pos), end = 0;
+        if (skip > this.pos) {
+          let title = parseLinkTitle(content, skip, this.start);
+          if (title) {
+            let titleEnd = lineEnd(content, title.to - this.start);
+            if (titleEnd > 0) {
+              this.nextStage(title);
+              end = titleEnd;
+            }
+          }
+        }
+        if (!end)
+          end = lineEnd(content, this.pos);
+        return end > 0 && end < content.length ? end : -1;
+      } else {
+        return lineEnd(content, this.pos);
+      }
+    }
+  }
+};
+function lineEnd(text, pos) {
+  for (; pos < text.length; pos++) {
+    let next = text.charCodeAt(pos);
+    if (next == 10)
+      break;
+    if (!space(next))
+      return -1;
+  }
+  return pos;
+}
+var SetextHeadingParser = class {
+  nextLine(cx, line, leaf) {
+    let underline = line.depth < cx.stack.length ? -1 : isSetextUnderline(line);
+    let next = line.next;
+    if (underline < 0)
+      return false;
+    let underlineMark = elt(Type.HeaderMark, cx.lineStart + line.pos, cx.lineStart + underline);
+    cx.nextLine();
+    cx.addLeafElement(leaf, elt(next == 61 ? Type.SetextHeading1 : Type.SetextHeading2, leaf.start, cx.prevLineEnd(), [
+      ...cx.parser.parseInline(leaf.content, leaf.start),
+      underlineMark
+    ]));
+    return true;
+  }
+  finish() {
+    return false;
+  }
+};
+var DefaultLeafBlocks = {
+  LinkReference(_, leaf) {
+    return leaf.content.charCodeAt(0) == 91 ? new LinkReferenceParser(leaf) : null;
+  },
+  SetextHeading() {
+    return new SetextHeadingParser();
+  }
+};
+var DefaultEndLeaf = [
+  (_, line) => isAtxHeading(line) >= 0,
+  (_, line) => isFencedCode(line) >= 0,
+  (_, line) => isBlockquote(line) >= 0,
+  (p, line) => isBulletList(line, p, true) >= 0,
+  (p, line) => isOrderedList(line, p, true) >= 0,
+  (p, line) => isHorizontalRule(line, p, true) >= 0,
+  (p, line) => isHTMLBlock(line, p, true) >= 0
+];
+var scanLineResult = { text: "", end: 0 };
+var BlockContext = class {
+  /**
+  @internal
+  */
+  constructor(parser2, input, fragments, ranges) {
+    this.parser = parser2;
+    this.input = input;
+    this.ranges = ranges;
+    this.line = new Line();
+    this.atEnd = false;
+    this.reusePlaceholders = /* @__PURE__ */ new Map();
+    this.stoppedAt = null;
+    this.rangeI = 0;
+    this.to = ranges[ranges.length - 1].to;
+    this.lineStart = this.absoluteLineStart = this.absoluteLineEnd = ranges[0].from;
+    this.block = CompositeBlock.create(Type.Document, 0, this.lineStart, 0, 0);
+    this.stack = [this.block];
+    this.fragments = fragments.length ? new FragmentCursor(fragments, input) : null;
+    this.readLine();
+  }
+  get parsedPos() {
+    return this.absoluteLineStart;
+  }
+  advance() {
+    if (this.stoppedAt != null && this.absoluteLineStart > this.stoppedAt)
+      return this.finish();
+    let { line } = this;
+    for (; ; ) {
+      for (let markI = 0; ; ) {
+        let next = line.depth < this.stack.length ? this.stack[this.stack.length - 1] : null;
+        while (markI < line.markers.length && (!next || line.markers[markI].from < next.end)) {
+          let mark = line.markers[markI++];
+          this.addNode(mark.type, mark.from, mark.to);
+        }
+        if (!next)
+          break;
+        this.finishContext();
+      }
+      if (line.pos < line.text.length)
+        break;
+      if (!this.nextLine())
+        return this.finish();
+    }
+    if (this.fragments && this.reuseFragment(line.basePos))
+      return null;
+    start:
+      for (; ; ) {
+        for (let type of this.parser.blockParsers)
+          if (type) {
+            let result = type(this, line);
+            if (result != false) {
+              if (result == true)
+                return null;
+              line.forward();
+              continue start;
+            }
+          }
+        break;
+      }
+    if (line.pos == line.text.length)
+      return this.nextLine() ? null : this.finish();
+    let leaf = new LeafBlock(this.lineStart + line.pos, line.text.slice(line.pos));
+    for (let parse of this.parser.leafBlockParsers)
+      if (parse) {
+        let parser2 = parse(this, leaf);
+        if (parser2)
+          leaf.parsers.push(parser2);
+      }
+    lines:
+      while (this.nextLine()) {
+        if (line.pos == line.text.length)
+          break;
+        if (line.indent < line.baseIndent + 4) {
+          for (let stop of this.parser.endLeafBlock)
+            if (stop(this, line, leaf))
+              break lines;
+        }
+        for (let parser2 of leaf.parsers)
+          if (parser2.nextLine(this, line, leaf))
+            return null;
+        leaf.content += "\n" + line.scrub();
+        for (let m of line.markers)
+          leaf.marks.push(m);
+      }
+    this.finishLeaf(leaf);
+    return null;
+  }
+  stopAt(pos) {
+    if (this.stoppedAt != null && this.stoppedAt < pos)
+      throw new RangeError("Can't move stoppedAt forward");
+    this.stoppedAt = pos;
+  }
+  reuseFragment(start) {
+    if (!this.fragments.moveTo(this.absoluteLineStart + start, this.absoluteLineStart) || !this.fragments.matches(this.block.hash))
+      return false;
+    let taken = this.fragments.takeNodes(this);
+    if (!taken)
+      return false;
+    this.absoluteLineStart += taken;
+    this.lineStart = toRelative(this.absoluteLineStart, this.ranges);
+    this.moveRangeI();
+    if (this.absoluteLineStart < this.to) {
+      this.lineStart++;
+      this.absoluteLineStart++;
+      this.readLine();
+    } else {
+      this.atEnd = true;
+      this.readLine();
+    }
+    return true;
+  }
+  /**
+  The number of parent blocks surrounding the current block.
+  */
+  get depth() {
+    return this.stack.length;
+  }
+  /**
+  Get the type of the parent block at the given depth. When no
+  depth is passed, return the type of the innermost parent.
+  */
+  parentType(depth = this.depth - 1) {
+    return this.parser.nodeSet.types[this.stack[depth].type];
+  }
+  /**
+  Move to the next input line. This should only be called by
+  (non-composite) [block parsers](#BlockParser.parse) that consume
+  the line directly, or leaf block parser
+  [`nextLine`](#LeafBlockParser.nextLine) methods when they
+  consume the current line (and return true).
+  */
+  nextLine() {
+    this.lineStart += this.line.text.length;
+    if (this.absoluteLineEnd >= this.to) {
+      this.absoluteLineStart = this.absoluteLineEnd;
+      this.atEnd = true;
+      this.readLine();
+      return false;
+    } else {
+      this.lineStart++;
+      this.absoluteLineStart = this.absoluteLineEnd + 1;
+      this.moveRangeI();
+      this.readLine();
+      return true;
+    }
+  }
+  /**
+  Retrieve the text of the line after the current one, without
+  actually moving the context's current line forward.
+  */
+  peekLine() {
+    return this.scanLine(this.absoluteLineEnd + 1).text;
+  }
+  moveRangeI() {
+    while (this.rangeI < this.ranges.length - 1 && this.absoluteLineStart >= this.ranges[this.rangeI].to) {
+      this.rangeI++;
+      this.absoluteLineStart = Math.max(this.absoluteLineStart, this.ranges[this.rangeI].from);
+    }
+  }
+  /**
+  @internal
+  Collect the text for the next line.
+  */
+  scanLine(start) {
+    let r = scanLineResult;
+    r.end = start;
+    if (start >= this.to) {
+      r.text = "";
+    } else {
+      r.text = this.lineChunkAt(start);
+      r.end += r.text.length;
+      if (this.ranges.length > 1) {
+        let textOffset = this.absoluteLineStart, rangeI = this.rangeI;
+        while (this.ranges[rangeI].to < r.end) {
+          rangeI++;
+          let nextFrom = this.ranges[rangeI].from;
+          let after = this.lineChunkAt(nextFrom);
+          r.end = nextFrom + after.length;
+          r.text = r.text.slice(0, this.ranges[rangeI - 1].to - textOffset) + after;
+          textOffset = r.end - r.text.length;
+        }
+      }
+    }
+    return r;
+  }
+  /**
+  @internal
+  Populate this.line with the content of the next line. Skip
+  leading characters covered by composite blocks.
+  */
+  readLine() {
+    let { line } = this, { text, end } = this.scanLine(this.absoluteLineStart);
+    this.absoluteLineEnd = end;
+    line.reset(text);
+    for (; line.depth < this.stack.length; line.depth++) {
+      let cx = this.stack[line.depth], handler = this.parser.skipContextMarkup[cx.type];
+      if (!handler)
+        throw new Error("Unhandled block context " + Type[cx.type]);
+      let marks = this.line.markers.length;
+      if (!handler(cx, this, line)) {
+        if (this.line.markers.length > marks)
+          cx.end = this.line.markers[this.line.markers.length - 1].to;
+        line.forward();
+        break;
+      }
+      line.forward();
+    }
+  }
+  lineChunkAt(pos) {
+    let next = this.input.chunk(pos), text;
+    if (!this.input.lineChunks) {
+      let eol = next.indexOf("\n");
+      text = eol < 0 ? next : next.slice(0, eol);
+    } else {
+      text = next == "\n" ? "" : next;
+    }
+    return pos + text.length > this.to ? text.slice(0, this.to - pos) : text;
+  }
+  /**
+  The end position of the previous line.
+  */
+  prevLineEnd() {
+    return this.atEnd ? this.lineStart : this.lineStart - 1;
+  }
+  /**
+  @internal
+  */
+  startContext(type, start, value = 0) {
+    this.block = CompositeBlock.create(type, value, this.lineStart + start, this.block.hash, this.lineStart + this.line.text.length);
+    this.stack.push(this.block);
+  }
+  /**
+  Start a composite block. Should only be called from [block
+  parser functions](#BlockParser.parse) that return null.
+  */
+  startComposite(type, start, value = 0) {
+    this.startContext(this.parser.getNodeType(type), start, value);
+  }
+  /**
+  @internal
+  */
+  addNode(block, from, to) {
+    if (typeof block == "number")
+      block = new import_common.Tree(this.parser.nodeSet.types[block], none, none, (to !== null && to !== void 0 ? to : this.prevLineEnd()) - from);
+    this.block.addChild(block, from - this.block.from);
+  }
+  /**
+  Add a block element. Can be called by [block
+  parsers](#BlockParser.parse).
+  */
+  addElement(elt2) {
+    this.block.addChild(elt2.toTree(this.parser.nodeSet), elt2.from - this.block.from);
+  }
+  /**
+  Add a block element from a [leaf parser](#LeafBlockParser). This
+  makes sure any extra composite block markup (such as blockquote
+  markers) inside the block are also added to the syntax tree.
+  */
+  addLeafElement(leaf, elt2) {
+    this.addNode(this.buffer.writeElements(injectMarks(elt2.children, leaf.marks), -elt2.from).finish(elt2.type, elt2.to - elt2.from), elt2.from);
+  }
+  /**
+  @internal
+  */
+  finishContext() {
+    let cx = this.stack.pop();
+    let top = this.stack[this.stack.length - 1];
+    top.addChild(cx.toTree(this.parser.nodeSet), cx.from - top.from);
+    this.block = top;
+  }
+  finish() {
+    while (this.stack.length > 1)
+      this.finishContext();
+    return this.addGaps(this.block.toTree(this.parser.nodeSet, this.lineStart));
+  }
+  addGaps(tree) {
+    return this.ranges.length > 1 ? injectGaps(this.ranges, 0, tree.topNode, this.ranges[0].from, this.reusePlaceholders) : tree;
+  }
+  /**
+  @internal
+  */
+  finishLeaf(leaf) {
+    for (let parser2 of leaf.parsers)
+      if (parser2.finish(this, leaf))
+        return;
+    let inline = injectMarks(this.parser.parseInline(leaf.content, leaf.start), leaf.marks);
+    this.addNode(this.buffer.writeElements(inline, -leaf.start).finish(Type.Paragraph, leaf.content.length), leaf.start);
+  }
+  elt(type, from, to, children) {
+    if (typeof type == "string")
+      return elt(this.parser.getNodeType(type), from, to, children);
+    return new TreeElement(type, from);
+  }
+  /**
+  @internal
+  */
+  get buffer() {
+    return new Buffer2(this.parser.nodeSet);
+  }
+};
+function injectGaps(ranges, rangeI, tree, offset, dummies) {
+  let rangeEnd = ranges[rangeI].to;
+  let children = [], positions = [], start = tree.from + offset;
+  function movePastNext(upto, inclusive) {
+    while (inclusive ? upto >= rangeEnd : upto > rangeEnd) {
+      let size = ranges[rangeI + 1].from - rangeEnd;
+      offset += size;
+      upto += size;
+      rangeI++;
+      rangeEnd = ranges[rangeI].to;
+    }
+  }
+  for (let ch = tree.firstChild; ch; ch = ch.nextSibling) {
+    movePastNext(ch.from + offset, true);
+    let from = ch.from + offset, node, reuse = dummies.get(ch.tree);
+    if (reuse) {
+      node = reuse;
+    } else if (ch.to + offset > rangeEnd) {
+      node = injectGaps(ranges, rangeI, ch, offset, dummies);
+      movePastNext(ch.to + offset, false);
+    } else {
+      node = ch.toTree();
+    }
+    children.push(node);
+    positions.push(from - start);
+  }
+  movePastNext(tree.to + offset, false);
+  return new import_common.Tree(tree.type, children, positions, tree.to + offset - start, tree.tree ? tree.tree.propValues : void 0);
+}
+var MarkdownParser = class extends import_common.Parser {
+  /**
+  @internal
+  */
+  constructor(nodeSet, blockParsers, leafBlockParsers, blockNames, endLeafBlock, skipContextMarkup, inlineParsers, inlineNames, wrappers) {
+    super();
+    this.nodeSet = nodeSet;
+    this.blockParsers = blockParsers;
+    this.leafBlockParsers = leafBlockParsers;
+    this.blockNames = blockNames;
+    this.endLeafBlock = endLeafBlock;
+    this.skipContextMarkup = skipContextMarkup;
+    this.inlineParsers = inlineParsers;
+    this.inlineNames = inlineNames;
+    this.wrappers = wrappers;
+    this.nodeTypes = /* @__PURE__ */ Object.create(null);
+    for (let t of nodeSet.types)
+      this.nodeTypes[t.name] = t.id;
+  }
+  createParse(input, fragments, ranges) {
+    let parse = new BlockContext(this, input, fragments, ranges);
+    for (let w of this.wrappers)
+      parse = w(parse, input, fragments, ranges);
+    return parse;
+  }
+  /**
+  Reconfigure the parser.
+  */
+  configure(spec) {
+    let config = resolveConfig(spec);
+    if (!config)
+      return this;
+    let { nodeSet, skipContextMarkup } = this;
+    let blockParsers = this.blockParsers.slice(), leafBlockParsers = this.leafBlockParsers.slice(), blockNames = this.blockNames.slice(), inlineParsers = this.inlineParsers.slice(), inlineNames = this.inlineNames.slice(), endLeafBlock = this.endLeafBlock.slice(), wrappers = this.wrappers;
+    if (nonEmpty(config.defineNodes)) {
+      skipContextMarkup = Object.assign({}, skipContextMarkup);
+      let nodeTypes2 = nodeSet.types.slice(), styles;
+      for (let s of config.defineNodes) {
+        let { name, block, composite, style } = typeof s == "string" ? { name: s } : s;
+        if (nodeTypes2.some((t) => t.name == name))
+          continue;
+        if (composite)
+          skipContextMarkup[nodeTypes2.length] = (bl, cx, line) => composite(cx, line, bl.value);
+        let id = nodeTypes2.length;
+        let group = composite ? ["Block", "BlockContext"] : !block ? void 0 : id >= Type.ATXHeading1 && id <= Type.SetextHeading2 ? ["Block", "LeafBlock", "Heading"] : ["Block", "LeafBlock"];
+        nodeTypes2.push(import_common.NodeType.define({
+          id,
+          name,
+          props: group && [[import_common.NodeProp.group, group]]
+        }));
+        if (style) {
+          if (!styles)
+            styles = {};
+          if (Array.isArray(style) || style instanceof import_highlight.Tag)
+            styles[name] = style;
+          else
+            Object.assign(styles, style);
+        }
+      }
+      nodeSet = new import_common.NodeSet(nodeTypes2);
+      if (styles)
+        nodeSet = nodeSet.extend((0, import_highlight.styleTags)(styles));
+    }
+    if (nonEmpty(config.props))
+      nodeSet = nodeSet.extend(...config.props);
+    if (nonEmpty(config.remove)) {
+      for (let rm of config.remove) {
+        let block = this.blockNames.indexOf(rm), inline = this.inlineNames.indexOf(rm);
+        if (block > -1)
+          blockParsers[block] = leafBlockParsers[block] = void 0;
+        if (inline > -1)
+          inlineParsers[inline] = void 0;
+      }
+    }
+    if (nonEmpty(config.parseBlock)) {
+      for (let spec2 of config.parseBlock) {
+        let found = blockNames.indexOf(spec2.name);
+        if (found > -1) {
+          blockParsers[found] = spec2.parse;
+          leafBlockParsers[found] = spec2.leaf;
+        } else {
+          let pos = spec2.before ? findName(blockNames, spec2.before) : spec2.after ? findName(blockNames, spec2.after) + 1 : blockNames.length - 1;
+          blockParsers.splice(pos, 0, spec2.parse);
+          leafBlockParsers.splice(pos, 0, spec2.leaf);
+          blockNames.splice(pos, 0, spec2.name);
+        }
+        if (spec2.endLeaf)
+          endLeafBlock.push(spec2.endLeaf);
+      }
+    }
+    if (nonEmpty(config.parseInline)) {
+      for (let spec2 of config.parseInline) {
+        let found = inlineNames.indexOf(spec2.name);
+        if (found > -1) {
+          inlineParsers[found] = spec2.parse;
+        } else {
+          let pos = spec2.before ? findName(inlineNames, spec2.before) : spec2.after ? findName(inlineNames, spec2.after) + 1 : inlineNames.length - 1;
+          inlineParsers.splice(pos, 0, spec2.parse);
+          inlineNames.splice(pos, 0, spec2.name);
+        }
+      }
+    }
+    if (config.wrap)
+      wrappers = wrappers.concat(config.wrap);
+    return new MarkdownParser(nodeSet, blockParsers, leafBlockParsers, blockNames, endLeafBlock, skipContextMarkup, inlineParsers, inlineNames, wrappers);
+  }
+  /**
+  @internal
+  */
+  getNodeType(name) {
+    let found = this.nodeTypes[name];
+    if (found == null)
+      throw new RangeError(`Unknown node type '${name}'`);
+    return found;
+  }
+  /**
+  Parse the given piece of inline text at the given offset,
+  returning an array of [`Element`](#Element) objects representing
+  the inline content.
+  */
+  parseInline(text, offset) {
+    let cx = new InlineContext(this, text, offset);
+    outer:
+      for (let pos = offset; pos < cx.end; ) {
+        let next = cx.char(pos);
+        for (let token of this.inlineParsers)
+          if (token) {
+            let result = token(cx, next, pos);
+            if (result >= 0) {
+              pos = result;
+              continue outer;
+            }
+          }
+        pos++;
+      }
+    return cx.resolveMarkers(0);
+  }
+};
+function nonEmpty(a) {
+  return a != null && a.length > 0;
+}
+function resolveConfig(spec) {
+  if (!Array.isArray(spec))
+    return spec;
+  if (spec.length == 0)
+    return null;
+  let conf = resolveConfig(spec[0]);
+  if (spec.length == 1)
+    return conf;
+  let rest = resolveConfig(spec.slice(1));
+  if (!rest || !conf)
+    return conf || rest;
+  let conc = (a, b) => (a || none).concat(b || none);
+  let wrapA = conf.wrap, wrapB = rest.wrap;
+  return {
+    props: conc(conf.props, rest.props),
+    defineNodes: conc(conf.defineNodes, rest.defineNodes),
+    parseBlock: conc(conf.parseBlock, rest.parseBlock),
+    parseInline: conc(conf.parseInline, rest.parseInline),
+    remove: conc(conf.remove, rest.remove),
+    wrap: !wrapA ? wrapB : !wrapB ? wrapA : (inner, input, fragments, ranges) => wrapA(wrapB(inner, input, fragments, ranges), input, fragments, ranges)
+  };
+}
+function findName(names, name) {
+  let found = names.indexOf(name);
+  if (found < 0)
+    throw new RangeError(`Position specified relative to unknown parser ${name}`);
+  return found;
+}
+var nodeTypes = [import_common.NodeType.none];
+for (let i = 1, name; name = Type[i]; i++) {
+  nodeTypes[i] = import_common.NodeType.define({
+    id: i,
+    name,
+    props: i >= Type.Escape ? [] : [[import_common.NodeProp.group, i in DefaultSkipMarkup ? ["Block", "BlockContext"] : ["Block", "LeafBlock"]]],
+    top: name == "Document"
+  });
+}
+var none = [];
+var Buffer2 = class {
+  constructor(nodeSet) {
+    this.nodeSet = nodeSet;
+    this.content = [];
+    this.nodes = [];
+  }
+  write(type, from, to, children = 0) {
+    this.content.push(type, from, to, 4 + children * 4);
+    return this;
+  }
+  writeElements(elts, offset = 0) {
+    for (let e of elts)
+      e.writeTo(this, offset);
+    return this;
+  }
+  finish(type, length) {
+    return import_common.Tree.build({
+      buffer: this.content,
+      nodeSet: this.nodeSet,
+      reused: this.nodes,
+      topID: type,
+      length
+    });
+  }
+};
+var Element = class {
+  /**
+  @internal
+  */
+  constructor(type, from, to, children = none) {
+    this.type = type;
+    this.from = from;
+    this.to = to;
+    this.children = children;
+  }
+  /**
+  @internal
+  */
+  writeTo(buf, offset) {
+    let startOff = buf.content.length;
+    buf.writeElements(this.children, offset);
+    buf.content.push(this.type, this.from + offset, this.to + offset, buf.content.length + 4 - startOff);
+  }
+  /**
+  @internal
+  */
+  toTree(nodeSet) {
+    return new Buffer2(nodeSet).writeElements(this.children, -this.from).finish(this.type, this.to - this.from);
+  }
+};
+var TreeElement = class {
+  constructor(tree, from) {
+    this.tree = tree;
+    this.from = from;
+  }
+  get to() {
+    return this.from + this.tree.length;
+  }
+  get type() {
+    return this.tree.type.id;
+  }
+  get children() {
+    return none;
+  }
+  writeTo(buf, offset) {
+    buf.nodes.push(this.tree);
+    buf.content.push(buf.nodes.length - 1, this.from + offset, this.to + offset, -1);
+  }
+  toTree() {
+    return this.tree;
+  }
+};
+function elt(type, from, to, children) {
+  return new Element(type, from, to, children);
+}
+var EmphasisUnderscore = { resolve: "Emphasis", mark: "EmphasisMark" };
+var EmphasisAsterisk = { resolve: "Emphasis", mark: "EmphasisMark" };
+var LinkStart = {};
+var ImageStart = {};
+var InlineDelimiter = class {
+  constructor(type, from, to, side, size = to - from) {
+    this.type = type;
+    this.from = from;
+    this.to = to;
+    this.side = side;
+    this.size = size;
+  }
+};
+var Escapable = "!\"#$%&'()*+,-./:;<=>?@[\\]^_`{|}~";
+var Punctuation = /[!"#$%&'()*+,\-.\/:;<=>?@\[\\\]^_`{|}~\xA1\u2010-\u2027]/;
+try {
+  Punctuation = new RegExp("[\\p{S}|\\p{P}]", "u");
+} catch (_) {
+}
+var DefaultInline = {
+  Escape(cx, next, start) {
+    if (next != 92 || start == cx.end - 1)
+      return -1;
+    let escaped = cx.char(start + 1);
+    for (let i = 0; i < Escapable.length; i++)
+      if (Escapable.charCodeAt(i) == escaped)
+        return cx.append(elt(Type.Escape, start, start + 2));
+    return -1;
+  },
+  Entity(cx, next, start) {
+    if (next != 38)
+      return -1;
+    let m = /^(?:#\d+|#x[a-f\d]+|\w+);/i.exec(cx.slice(start + 1, start + 31));
+    return m ? cx.append(elt(Type.Entity, start, start + 1 + m[0].length)) : -1;
+  },
+  InlineCode(cx, next, start) {
+    if (next != 96 || start && cx.char(start - 1) == 96)
+      return -1;
+    let pos = start + 1;
+    while (pos < cx.end && cx.char(pos) == 96)
+      pos++;
+    let size = pos - start, curSize = 0;
+    for (; pos < cx.end; pos++) {
+      if (cx.char(pos) == 96) {
+        curSize++;
+        if (curSize == size && cx.char(pos + 1) != 96)
+          return cx.append(elt(Type.InlineCode, start, pos + 1, [
+            elt(Type.CodeMark, start, start + size),
+            elt(Type.CodeMark, pos + 1 - size, pos + 1)
+          ]));
+      } else {
+        curSize = 0;
+      }
+    }
+    return -1;
+  },
+  HTMLTag(cx, next, start) {
+    if (next != 60 || start == cx.end - 1)
+      return -1;
+    let after = cx.slice(start + 1, cx.end);
+    let url = /^(?:[a-z][-\w+.]+:[^\s>]+|[a-z\d.!#$%&'*+/=?^_`{|}~-]+@[a-z\d](?:[a-z\d-]{0,61}[a-z\d])?(?:\.[a-z\d](?:[a-z\d-]{0,61}[a-z\d])?)*)>/i.exec(after);
+    if (url) {
+      return cx.append(elt(Type.Autolink, start, start + 1 + url[0].length, [
+        elt(Type.LinkMark, start, start + 1),
+        // url[0] includes the closing bracket, so exclude it from this slice
+        elt(Type.URL, start + 1, start + url[0].length),
+        elt(Type.LinkMark, start + url[0].length, start + 1 + url[0].length)
+      ]));
+    }
+    let comment = /^!--[^>](?:-[^-]|[^-])*?-->/i.exec(after);
+    if (comment)
+      return cx.append(elt(Type.Comment, start, start + 1 + comment[0].length));
+    let procInst = /^\?[^]*?\?>/.exec(after);
+    if (procInst)
+      return cx.append(elt(Type.ProcessingInstruction, start, start + 1 + procInst[0].length));
+    let m = /^(?:![A-Z][^]*?>|!\[CDATA\[[^]*?\]\]>|\/\s*[a-zA-Z][\w-]*\s*>|\s*[a-zA-Z][\w-]*(\s+[a-zA-Z:_][\w-.:]*(?:\s*=\s*(?:[^\s"'=<>`]+|'[^']*'|"[^"]*"))?)*\s*(\/\s*)?>)/.exec(after);
+    if (!m)
+      return -1;
+    return cx.append(elt(Type.HTMLTag, start, start + 1 + m[0].length));
+  },
+  Emphasis(cx, next, start) {
+    if (next != 95 && next != 42)
+      return -1;
+    let pos = start + 1;
+    while (cx.char(pos) == next)
+      pos++;
+    let before = cx.slice(start - 1, start), after = cx.slice(pos, pos + 1);
+    let pBefore = Punctuation.test(before), pAfter = Punctuation.test(after);
+    let sBefore = /\s|^$/.test(before), sAfter = /\s|^$/.test(after);
+    let leftFlanking = !sAfter && (!pAfter || sBefore || pBefore);
+    let rightFlanking = !sBefore && (!pBefore || sAfter || pAfter);
+    let canOpen = leftFlanking && (next == 42 || !rightFlanking || pBefore);
+    let canClose = rightFlanking && (next == 42 || !leftFlanking || pAfter);
+    return cx.append(new InlineDelimiter(next == 95 ? EmphasisUnderscore : EmphasisAsterisk, start, pos, (canOpen ? 1 : 0) | (canClose ? 2 : 0)));
+  },
+  HardBreak(cx, next, start) {
+    if (next == 92 && cx.char(start + 1) == 10)
+      return cx.append(elt(Type.HardBreak, start, start + 2));
+    if (next == 32) {
+      let pos = start + 1;
+      while (cx.char(pos) == 32)
+        pos++;
+      if (cx.char(pos) == 10 && pos >= start + 2)
+        return cx.append(elt(Type.HardBreak, start, pos + 1));
+    }
+    return -1;
+  },
+  Link(cx, next, start) {
+    return next == 91 ? cx.append(new InlineDelimiter(
+      LinkStart,
+      start,
+      start + 1,
+      1
+      /* Mark.Open */
+    )) : -1;
+  },
+  Image(cx, next, start) {
+    return next == 33 && cx.char(start + 1) == 91 ? cx.append(new InlineDelimiter(
+      ImageStart,
+      start,
+      start + 2,
+      1
+      /* Mark.Open */
+    )) : -1;
+  },
+  LinkEnd(cx, next, start) {
+    if (next != 93)
+      return -1;
+    for (let i = cx.parts.length - 1; i >= 0; i--) {
+      let part = cx.parts[i];
+      if (part instanceof InlineDelimiter && (part.type == LinkStart || part.type == ImageStart)) {
+        if (!part.side || cx.skipSpace(part.to) == start && !/[(\[]/.test(cx.slice(start + 1, start + 2))) {
+          cx.parts[i] = null;
+          return -1;
+        }
+        let content = cx.takeContent(i);
+        let link = cx.parts[i] = finishLink(cx, content, part.type == LinkStart ? Type.Link : Type.Image, part.from, start + 1);
+        if (part.type == LinkStart)
+          for (let j = 0; j < i; j++) {
+            let p = cx.parts[j];
+            if (p instanceof InlineDelimiter && p.type == LinkStart)
+              p.side = 0;
+          }
+        return link.to;
+      }
+    }
+    return -1;
+  }
+};
+function finishLink(cx, content, type, start, startPos) {
+  let { text } = cx, next = cx.char(startPos), endPos = startPos;
+  content.unshift(elt(Type.LinkMark, start, start + (type == Type.Image ? 2 : 1)));
+  content.push(elt(Type.LinkMark, startPos - 1, startPos));
+  if (next == 40) {
+    let pos = cx.skipSpace(startPos + 1);
+    let dest = parseURL(text, pos - cx.offset, cx.offset), title;
+    if (dest) {
+      pos = cx.skipSpace(dest.to);
+      if (pos != dest.to) {
+        title = parseLinkTitle(text, pos - cx.offset, cx.offset);
+        if (title)
+          pos = cx.skipSpace(title.to);
+      }
+    }
+    if (cx.char(pos) == 41) {
+      content.push(elt(Type.LinkMark, startPos, startPos + 1));
+      endPos = pos + 1;
+      if (dest)
+        content.push(dest);
+      if (title)
+        content.push(title);
+      content.push(elt(Type.LinkMark, pos, endPos));
+    }
+  } else if (next == 91) {
+    let label = parseLinkLabel(text, startPos - cx.offset, cx.offset, false);
+    if (label) {
+      content.push(label);
+      endPos = label.to;
+    }
+  }
+  return elt(type, start, endPos, content);
+}
+function parseURL(text, start, offset) {
+  let next = text.charCodeAt(start);
+  if (next == 60) {
+    for (let pos = start + 1; pos < text.length; pos++) {
+      let ch = text.charCodeAt(pos);
+      if (ch == 62)
+        return elt(Type.URL, start + offset, pos + 1 + offset);
+      if (ch == 60 || ch == 10)
+        return false;
+    }
+    return null;
+  } else {
+    let depth = 0, pos = start;
+    for (let escaped = false; pos < text.length; pos++) {
+      let ch = text.charCodeAt(pos);
+      if (space(ch)) {
+        break;
+      } else if (escaped) {
+        escaped = false;
+      } else if (ch == 40) {
+        depth++;
+      } else if (ch == 41) {
+        if (!depth)
+          break;
+        depth--;
+      } else if (ch == 92) {
+        escaped = true;
+      }
+    }
+    return pos > start ? elt(Type.URL, start + offset, pos + offset) : pos == text.length ? null : false;
+  }
+}
+function parseLinkTitle(text, start, offset) {
+  let next = text.charCodeAt(start);
+  if (next != 39 && next != 34 && next != 40)
+    return false;
+  let end = next == 40 ? 41 : next;
+  for (let pos = start + 1, escaped = false; pos < text.length; pos++) {
+    let ch = text.charCodeAt(pos);
+    if (escaped)
+      escaped = false;
+    else if (ch == end)
+      return elt(Type.LinkTitle, start + offset, pos + 1 + offset);
+    else if (ch == 92)
+      escaped = true;
+  }
+  return null;
+}
+function parseLinkLabel(text, start, offset, requireNonWS) {
+  for (let escaped = false, pos = start + 1, end = Math.min(text.length, pos + 999); pos < end; pos++) {
+    let ch = text.charCodeAt(pos);
+    if (escaped)
+      escaped = false;
+    else if (ch == 93)
+      return requireNonWS ? false : elt(Type.LinkLabel, start + offset, pos + 1 + offset);
+    else {
+      if (requireNonWS && !space(ch))
+        requireNonWS = false;
+      if (ch == 91)
+        return false;
+      else if (ch == 92)
+        escaped = true;
+    }
+  }
+  return null;
+}
+var InlineContext = class {
+  /**
+  @internal
+  */
+  constructor(parser2, text, offset) {
+    this.parser = parser2;
+    this.text = text;
+    this.offset = offset;
+    this.parts = [];
+  }
+  /**
+  Get the character code at the given (document-relative)
+  position.
+  */
+  char(pos) {
+    return pos >= this.end ? -1 : this.text.charCodeAt(pos - this.offset);
+  }
+  /**
+  The position of the end of this inline section.
+  */
+  get end() {
+    return this.offset + this.text.length;
+  }
+  /**
+  Get a substring of this inline section. Again uses
+  document-relative positions.
+  */
+  slice(from, to) {
+    return this.text.slice(from - this.offset, to - this.offset);
+  }
+  /**
+  @internal
+  */
+  append(elt2) {
+    this.parts.push(elt2);
+    return elt2.to;
+  }
+  /**
+  Add a [delimiter](#DelimiterType) at this given position. `open`
+  and `close` indicate whether this delimiter is opening, closing,
+  or both. Returns the end of the delimiter, for convenient
+  returning from [parse functions](#InlineParser.parse).
+  */
+  addDelimiter(type, from, to, open, close) {
+    return this.append(new InlineDelimiter(type, from, to, (open ? 1 : 0) | (close ? 2 : 0)));
+  }
+  /**
+  Returns true when there is an unmatched link or image opening
+  token before the current position.
+  */
+  get hasOpenLink() {
+    for (let i = this.parts.length - 1; i >= 0; i--) {
+      let part = this.parts[i];
+      if (part instanceof InlineDelimiter && (part.type == LinkStart || part.type == ImageStart))
+        return true;
+    }
+    return false;
+  }
+  /**
+  Add an inline element. Returns the end of the element.
+  */
+  addElement(elt2) {
+    return this.append(elt2);
+  }
+  /**
+  Resolve markers between this.parts.length and from, wrapping matched markers in the
+  appropriate node and updating the content of this.parts. @internal
+  */
+  resolveMarkers(from) {
+    for (let i = from; i < this.parts.length; i++) {
+      let close = this.parts[i];
+      if (!(close instanceof InlineDelimiter && close.type.resolve && close.side & 2))
+        continue;
+      let emp = close.type == EmphasisUnderscore || close.type == EmphasisAsterisk;
+      let closeSize = close.to - close.from;
+      let open, j = i - 1;
+      for (; j >= from; j--) {
+        let part = this.parts[j];
+        if (part instanceof InlineDelimiter && part.side & 1 && part.type == close.type && // Ignore emphasis delimiters where the character count doesn't match
+        !(emp && (close.side & 1 || part.side & 2) && (part.size + close.size) % 3 == 0 && (part.size % 3 || close.size % 3))) {
+          open = part;
+          break;
+        }
+      }
+      if (!open)
+        continue;
+      let type = close.type.resolve, content = [];
+      let start = open.from, end = close.to;
+      if (emp) {
+        let size = Math.min(2, open.to - open.from, closeSize);
+        start = open.to - size;
+        end = close.from + size;
+        type = size == 1 ? "Emphasis" : "StrongEmphasis";
+      }
+      if (open.type.mark)
+        content.push(this.elt(open.type.mark, start, open.to));
+      for (let k = j + 1; k < i; k++) {
+        if (this.parts[k] instanceof Element)
+          content.push(this.parts[k]);
+        this.parts[k] = null;
+      }
+      if (close.type.mark)
+        content.push(this.elt(close.type.mark, close.from, end));
+      let element = this.elt(type, start, end, content);
+      this.parts[j] = emp && open.from != start ? new InlineDelimiter(open.type, open.from, start, open.side, open.size) : null;
+      let keep = this.parts[i] = emp && close.to != end ? new InlineDelimiter(close.type, end, close.to, close.side, close.size) : null;
+      if (keep)
+        this.parts.splice(i, 0, element);
+      else
+        this.parts[i] = element;
+    }
+    let result = [];
+    for (let i = from; i < this.parts.length; i++) {
+      let part = this.parts[i];
+      if (part instanceof Element)
+        result.push(part);
+    }
+    return result;
+  }
+  /**
+  Find an opening delimiter of the given type. Returns `null` if
+  no delimiter is found, or an index that can be passed to
+  [`takeContent`](#InlineContext.takeContent) otherwise.
+  */
+  findOpeningDelimiter(type) {
+    for (let i = this.parts.length - 1; i >= 0; i--) {
+      let part = this.parts[i];
+      if (part instanceof InlineDelimiter && part.type == type && part.side & 1)
+        return i;
+    }
+    return null;
+  }
+  /**
+  Remove all inline elements and delimiters starting from the
+  given index (which you should get from
+  [`findOpeningDelimiter`](#InlineContext.findOpeningDelimiter),
+  resolve delimiters inside of them, and return them as an array
+  of elements.
+  */
+  takeContent(startIndex) {
+    let content = this.resolveMarkers(startIndex);
+    this.parts.length = startIndex;
+    return content;
+  }
+  /**
+  Return the delimiter at the given index. Mostly useful to get
+  additional info out of a delimiter index returned by
+  [`findOpeningDelimiter`](#InlineContext.findOpeningDelimiter).
+  Returns null if there is no delimiter at this index.
+  */
+  getDelimiterAt(index) {
+    let part = this.parts[index];
+    return part instanceof InlineDelimiter ? part : null;
+  }
+  /**
+  Skip space after the given (document) position, returning either
+  the position of the next non-space character or the end of the
+  section.
+  */
+  skipSpace(from) {
+    return skipSpace(this.text, from - this.offset) + this.offset;
+  }
+  elt(type, from, to, children) {
+    if (typeof type == "string")
+      return elt(this.parser.getNodeType(type), from, to, children);
+    return new TreeElement(type, from);
+  }
+};
+InlineContext.linkStart = LinkStart;
+InlineContext.imageStart = ImageStart;
+InlineContext.emphasisAsterisk = EmphasisAsterisk;
+InlineContext.emphasisUnderscore = EmphasisUnderscore;
+function injectMarks(elements, marks) {
+  if (!marks.length)
+    return elements;
+  if (!elements.length)
+    return marks;
+  let elts = elements.slice(), eI = 0;
+  for (let mark of marks) {
+    while (eI < elts.length && elts[eI].to < mark.to)
+      eI++;
+    if (eI < elts.length && elts[eI].from < mark.from) {
+      let e = elts[eI];
+      if (e instanceof Element)
+        elts[eI] = new Element(e.type, e.from, e.to, injectMarks(e.children, [mark]));
+    } else {
+      elts.splice(eI++, 0, mark);
+    }
+  }
+  return elts;
+}
+var NotLast = [Type.CodeBlock, Type.ListItem, Type.OrderedList, Type.BulletList];
+var FragmentCursor = class {
+  constructor(fragments, input) {
+    this.fragments = fragments;
+    this.input = input;
+    this.i = 0;
+    this.fragment = null;
+    this.fragmentEnd = -1;
+    this.cursor = null;
+    if (fragments.length)
+      this.fragment = fragments[this.i++];
+  }
+  nextFragment() {
+    this.fragment = this.i < this.fragments.length ? this.fragments[this.i++] : null;
+    this.cursor = null;
+    this.fragmentEnd = -1;
+  }
+  moveTo(pos, lineStart) {
+    while (this.fragment && this.fragment.to <= pos)
+      this.nextFragment();
+    if (!this.fragment || this.fragment.from > (pos ? pos - 1 : 0))
+      return false;
+    if (this.fragmentEnd < 0) {
+      let end = this.fragment.to;
+      while (end > 0 && this.input.read(end - 1, end) != "\n")
+        end--;
+      this.fragmentEnd = end ? end - 1 : 0;
+    }
+    let c = this.cursor;
+    if (!c) {
+      c = this.cursor = this.fragment.tree.cursor();
+      c.firstChild();
+    }
+    let rPos = pos + this.fragment.offset;
+    while (c.to <= rPos)
+      if (!c.parent())
+        return false;
+    for (; ; ) {
+      if (c.from >= rPos)
+        return this.fragment.from <= lineStart;
+      if (!c.childAfter(rPos))
+        return false;
+    }
+  }
+  matches(hash) {
+    let tree = this.cursor.tree;
+    return tree && tree.prop(import_common.NodeProp.contextHash) == hash;
+  }
+  takeNodes(cx) {
+    let cur = this.cursor, off = this.fragment.offset, fragEnd = this.fragmentEnd - (this.fragment.openEnd ? 1 : 0);
+    let start = cx.absoluteLineStart, end = start, blockI = cx.block.children.length;
+    let prevEnd = end, prevI = blockI;
+    for (; ; ) {
+      if (cur.to - off > fragEnd || cur.to - off > cx.to) {
+        if (cur.type.isAnonymous && cur.firstChild())
+          continue;
+        break;
+      }
+      let pos = toRelative(cur.from - off, cx.ranges);
+      if (cur.to - off <= cx.ranges[cx.rangeI].to) {
+        cx.addNode(cur.tree, pos);
+      } else {
+        let dummy = new import_common.Tree(cx.parser.nodeSet.types[Type.Paragraph], [], [], 0, cx.block.hashProp);
+        cx.reusePlaceholders.set(dummy, cur.tree);
+        cx.addNode(dummy, pos);
+      }
+      if (cur.type.is("Block")) {
+        if (NotLast.indexOf(cur.type.id) < 0) {
+          end = cur.to - off;
+          blockI = cx.block.children.length;
+        } else {
+          end = prevEnd;
+          blockI = prevI;
+        }
+        prevEnd = cur.to - off;
+        prevI = cx.block.children.length;
+      }
+      if (!cur.nextSibling())
+        break;
+    }
+    while (cx.block.children.length > blockI) {
+      cx.block.children.pop();
+      cx.block.positions.pop();
+    }
+    return end - start;
+  }
+};
+function toRelative(abs, ranges) {
+  let pos = abs;
+  for (let i = 1; i < ranges.length; i++) {
+    let gapFrom = ranges[i - 1].to, gapTo = ranges[i].from;
+    if (gapFrom < abs)
+      pos -= gapTo - gapFrom;
+  }
+  return pos;
+}
+var markdownHighlighting = (0, import_highlight.styleTags)({
+  "Blockquote/...": import_highlight.tags.quote,
+  HorizontalRule: import_highlight.tags.contentSeparator,
+  "ATXHeading1/... SetextHeading1/...": import_highlight.tags.heading1,
+  "ATXHeading2/... SetextHeading2/...": import_highlight.tags.heading2,
+  "ATXHeading3/...": import_highlight.tags.heading3,
+  "ATXHeading4/...": import_highlight.tags.heading4,
+  "ATXHeading5/...": import_highlight.tags.heading5,
+  "ATXHeading6/...": import_highlight.tags.heading6,
+  "Comment CommentBlock": import_highlight.tags.comment,
+  Escape: import_highlight.tags.escape,
+  Entity: import_highlight.tags.character,
+  "Emphasis/...": import_highlight.tags.emphasis,
+  "StrongEmphasis/...": import_highlight.tags.strong,
+  "Link/... Image/...": import_highlight.tags.link,
+  "OrderedList/... BulletList/...": import_highlight.tags.list,
+  "BlockQuote/...": import_highlight.tags.quote,
+  "InlineCode CodeText": import_highlight.tags.monospace,
+  "URL Autolink": import_highlight.tags.url,
+  "HeaderMark HardBreak QuoteMark ListMark LinkMark EmphasisMark CodeMark": import_highlight.tags.processingInstruction,
+  "CodeInfo LinkLabel": import_highlight.tags.labelName,
+  LinkTitle: import_highlight.tags.string,
+  Paragraph: import_highlight.tags.content
+});
+var parser = new MarkdownParser(new import_common.NodeSet(nodeTypes).extend(markdownHighlighting), Object.keys(DefaultBlockParsers).map((n) => DefaultBlockParsers[n]), Object.keys(DefaultBlockParsers).map((n) => DefaultLeafBlocks[n]), Object.keys(DefaultBlockParsers), DefaultEndLeaf, DefaultSkipMarkup, Object.keys(DefaultInline).map((n) => DefaultInline[n]), Object.keys(DefaultInline), []);
+var StrikethroughDelim = { resolve: "Strikethrough", mark: "StrikethroughMark" };
+var Strikethrough = {
+  defineNodes: [{
+    name: "Strikethrough",
+    style: { "Strikethrough/...": import_highlight.tags.strikethrough }
+  }, {
+    name: "StrikethroughMark",
+    style: import_highlight.tags.processingInstruction
+  }],
+  parseInline: [{
+    name: "Strikethrough",
+    parse(cx, next, pos) {
+      if (next != 126 || cx.char(pos + 1) != 126 || cx.char(pos + 2) == 126)
+        return -1;
+      let before = cx.slice(pos - 1, pos), after = cx.slice(pos + 2, pos + 3);
+      let sBefore = /\s|^$/.test(before), sAfter = /\s|^$/.test(after);
+      let pBefore = Punctuation.test(before), pAfter = Punctuation.test(after);
+      return cx.addDelimiter(StrikethroughDelim, pos, pos + 2, !sAfter && (!pAfter || sBefore || pBefore), !sBefore && (!pBefore || sAfter || pAfter));
+    },
+    after: "Emphasis"
+  }]
+};
+function parseRow(cx, line, startI = 0, elts, offset = 0) {
+  let count = 0, first = true, cellStart = -1, cellEnd = -1, esc = false;
+  let parseCell = () => {
+    elts.push(cx.elt("TableCell", offset + cellStart, offset + cellEnd, cx.parser.parseInline(line.slice(cellStart, cellEnd), offset + cellStart)));
+  };
+  for (let i = startI; i < line.length; i++) {
+    let next = line.charCodeAt(i);
+    if (next == 124 && !esc) {
+      if (!first || cellStart > -1)
+        count++;
+      first = false;
+      if (elts) {
+        if (cellStart > -1)
+          parseCell();
+        elts.push(cx.elt("TableDelimiter", i + offset, i + offset + 1));
+      }
+      cellStart = cellEnd = -1;
+    } else if (esc || next != 32 && next != 9) {
+      if (cellStart < 0)
+        cellStart = i;
+      cellEnd = i + 1;
+    }
+    esc = !esc && next == 92;
+  }
+  if (cellStart > -1) {
+    count++;
+    if (elts)
+      parseCell();
+  }
+  return count;
+}
+function hasPipe(str, start) {
+  for (let i = start; i < str.length; i++) {
+    let next = str.charCodeAt(i);
+    if (next == 124)
+      return true;
+    if (next == 92)
+      i++;
+  }
+  return false;
+}
+var delimiterLine = /^[>\s]*\|?(\s*:?-+:?\s*\|)+(\s*:?-+:?\s*)?$/;
+var TableParser = class {
+  constructor() {
+    this.rows = null;
+  }
+  nextLine(cx, line, leaf) {
+    if (this.rows == null) {
+      this.rows = false;
+      let lineText;
+      if ((line.next == 45 || line.next == 58 || line.next == 124) && delimiterLine.test(lineText = line.text.slice(line.pos))) {
+        let firstRow = [], firstCount = parseRow(cx, leaf.content, 0, firstRow, leaf.start);
+        if (firstCount == parseRow(cx, lineText, 0))
+          this.rows = [
+            cx.elt("TableHeader", leaf.start, leaf.start + leaf.content.length, firstRow),
+            cx.elt("TableDelimiter", cx.lineStart + line.pos, cx.lineStart + line.text.length)
+          ];
+      }
+    } else if (this.rows) {
+      let content = [];
+      parseRow(cx, line.text, line.pos, content, cx.lineStart);
+      this.rows.push(cx.elt("TableRow", cx.lineStart + line.pos, cx.lineStart + line.text.length, content));
+    }
+    return false;
+  }
+  finish(cx, leaf) {
+    if (!this.rows)
+      return false;
+    cx.addLeafElement(leaf, cx.elt("Table", leaf.start, leaf.start + leaf.content.length, this.rows));
+    return true;
+  }
+};
+var Table = {
+  defineNodes: [
+    { name: "Table", block: true },
+    { name: "TableHeader", style: { "TableHeader/...": import_highlight.tags.heading } },
+    "TableRow",
+    { name: "TableCell", style: import_highlight.tags.content },
+    { name: "TableDelimiter", style: import_highlight.tags.processingInstruction }
+  ],
+  parseBlock: [{
+    name: "Table",
+    leaf(_, leaf) {
+      return hasPipe(leaf.content, 0) ? new TableParser() : null;
+    },
+    endLeaf(cx, line, leaf) {
+      if (leaf.parsers.some((p) => p instanceof TableParser) || !hasPipe(line.text, line.basePos))
+        return false;
+      let next = cx.peekLine();
+      return delimiterLine.test(next) && parseRow(cx, line.text, line.basePos) == parseRow(cx, next, line.basePos);
+    },
+    before: "SetextHeading"
+  }]
+};
+var TaskParser = class {
+  nextLine() {
+    return false;
+  }
+  finish(cx, leaf) {
+    cx.addLeafElement(leaf, cx.elt("Task", leaf.start, leaf.start + leaf.content.length, [
+      cx.elt("TaskMarker", leaf.start, leaf.start + 3),
+      ...cx.parser.parseInline(leaf.content.slice(3), leaf.start + 3)
+    ]));
+    return true;
+  }
+};
+var TaskList = {
+  defineNodes: [
+    { name: "Task", block: true, style: import_highlight.tags.list },
+    { name: "TaskMarker", style: import_highlight.tags.atom }
+  ],
+  parseBlock: [{
+    name: "TaskList",
+    leaf(cx, leaf) {
+      return /^\[[ xX]\][ \t]/.test(leaf.content) && cx.parentType().name == "ListItem" ? new TaskParser() : null;
+    },
+    after: "SetextHeading"
+  }]
+};
+function parseSubSuper(ch, node, mark) {
+  return (cx, next, pos) => {
+    if (next != ch || cx.char(pos + 1) == ch)
+      return -1;
+    let elts = [cx.elt(mark, pos, pos + 1)];
+    for (let i = pos + 1; i < cx.end; i++) {
+      let next2 = cx.char(i);
+      if (next2 == ch)
+        return cx.addElement(cx.elt(node, pos, i + 1, elts.concat(cx.elt(mark, i, i + 1))));
+      if (next2 == 92)
+        elts.push(cx.elt("Escape", i, i++ + 2));
+      if (space(next2))
+        break;
+    }
+    return -1;
+  };
+}
+var Superscript = {
+  defineNodes: [
+    { name: "Superscript", style: import_highlight.tags.special(import_highlight.tags.content) },
+    { name: "SuperscriptMark", style: import_highlight.tags.processingInstruction }
+  ],
+  parseInline: [{
+    name: "Superscript",
+    parse: parseSubSuper(94, "Superscript", "SuperscriptMark")
+  }]
+};
+var Subscript = {
+  defineNodes: [
+    { name: "Subscript", style: import_highlight.tags.special(import_highlight.tags.content) },
+    { name: "SubscriptMark", style: import_highlight.tags.processingInstruction }
+  ],
+  parseInline: [{
+    name: "Subscript",
+    parse: parseSubSuper(126, "Subscript", "SubscriptMark")
+  }]
+};
+var Emoji = {
+  defineNodes: [{ name: "Emoji", style: import_highlight.tags.character }],
+  parseInline: [{
+    name: "Emoji",
+    parse(cx, next, pos) {
+      let match;
+      if (next != 58 || !(match = /^[a-zA-Z_0-9]+:/.exec(cx.slice(pos + 1, cx.end))))
+        return -1;
+      return cx.addElement(cx.elt("Emoji", pos, pos + 1 + match[0].length));
+    }
+  }]
+};
+
+// markdown-embeds.ts
+var embedParser = parser.configure({
+  defineNodes: ["WikiEmbed", "ObsidianComment"],
+  parseInline: [{
+    name: "WikiEmbed",
+    before: "Image",
+    parse(cx, next, pos) {
+      if (next !== 33 || cx.slice(pos, pos + 3) !== "![[")
+        return -1;
+      const match = /^!\[\[([^\]\n]+)\]\]/.exec(cx.slice(pos, cx.end));
+      if (!match)
+        return -1;
+      return cx.addElement(cx.elt("WikiEmbed", pos, pos + match[0].length));
+    }
+  }, {
+    name: "ObsidianComment",
+    before: "Link",
+    parse(cx, next, pos) {
+      if (next !== 37 || cx.slice(pos, pos + 2) !== "%%")
+        return -1;
+      const end = cx.text.indexOf("%%", pos - cx.offset + 2);
+      return cx.addElement(cx.elt("ObsidianComment", pos, end < 0 ? cx.end : cx.offset + end + 2));
+    }
+  }]
+});
+function parseImageRanges(content) {
+  const input = content.replace(
+    /^\uFEFF?---\r?\n[\s\S]*?\r?\n(?:---|\.\.\.)(?:\r?\n|$)/,
+    (value) => value.replace(/[^\r\n]/g, " ")
+  );
+  const ranges = [];
+  const comments = [];
+  embedParser.parse(input).iterate({ enter(node) {
+    if (node.name === "ObsidianComment") {
+      if (comments.some((comment) => node.from >= comment.from && node.from < comment.to))
+        return;
+      const end = content.indexOf("%%", node.from + 2);
+      comments.push({ from: node.from, to: end < 0 ? content.length : end + 2 });
+    } else if (node.name === "WikiEmbed" || node.name === "Image") {
+      ranges.push({ from: node.from, to: node.to, wiki: node.name === "WikiEmbed" });
+    }
+  } });
+  return ranges.filter((range) => !comments.some((comment) => range.from >= comment.from && range.from < comment.to));
+}
+function findImageRanges(content) {
+  return parseImageRanges(content);
+}
+function findWikiEmbeds(content) {
+  return parseImageRanges(content).filter((range) => range.wiki).map((range) => {
+    const original = content.slice(range.from, range.to);
+    const [link, ...aliases] = original.slice(3, -2).split("|");
+    return {
+      from: range.from,
+      to: range.to,
+      original,
+      link: (link != null ? link : "").trim(),
+      ...aliases.length ? { alias: aliases.join("|") } : {}
+    };
+  });
+}
 
 // feishu-api.ts
 var getErrorMeta = (error) => {
@@ -1013,7 +3050,7 @@ var _FeishuApiClient = class {
    * @param imageInfos 图片信息数组
    * @param onProgress 进度回调
    */
-  async processImagesInDocument(documentId, imageInfos, onProgress) {
+  async processImagesInDocument(documentId, imageInfos, onProgress, generatedImages) {
     if (!imageInfos || imageInfos.length === 0) {
       return;
     }
@@ -1021,6 +3058,9 @@ var _FeishuApiClient = class {
       onProgress == null ? void 0 : onProgress("\u6B63\u5728\u83B7\u53D6\u6587\u6863\u7ED3\u6784...");
       const blocks = await this.getDocumentBlocks(documentId);
       const imageBlocks = blocks.filter((block) => block.block_type === 27);
+      if (imageInfos.slice(imageBlocks.length).some((info) => generatedImages == null ? void 0 : generatedImages.has(info.fileName))) {
+        throw new Error("\u98DE\u4E66\u5BFC\u5165\u7ED3\u679C\u7F3A\u5C11\u9884\u5904\u7406\u751F\u6210\u7684\u56FE\u7247\u5757");
+      }
       if (imageBlocks.length === 0) {
         return;
       }
@@ -1032,7 +3072,7 @@ var _FeishuApiClient = class {
         }
         onProgress == null ? void 0 : onProgress(`\u6B63\u5728\u5904\u7406\u56FE\u7247 ${i + 1}/${imageInfos.length}: ${imageInfo.fileName}`);
         try {
-          const fileResult = await this.readImageFileAsBase64(imageInfo.path);
+          const fileResult = await this.readImageFileAsBase64(imageInfo.path, generatedImages);
           if (!fileResult) {
             throw new Error(`\u65E0\u6CD5\u8BFB\u53D6\u56FE\u7247\u6587\u4EF6: ${imageInfo.path}`);
           }
@@ -1060,6 +3100,8 @@ var _FeishuApiClient = class {
             imageInfo
           );
         } catch (error) {
+          if (generatedImages == null ? void 0 : generatedImages.has(imageInfo.fileName))
+            throw error;
           const errorMessage = error instanceof Error ? error.message : String(error);
           console.error(`[\u98DE\u4E66API] \u5904\u7406\u56FE\u7247 ${imageInfo.fileName} \u5931\u8D25:`, errorMessage);
           this.debug(`[\u98DE\u4E66API] \u5904\u7406\u56FE\u7247 ${imageInfo.fileName} \u5931\u8D25\u8BE6\u60C5:`, {
@@ -1160,9 +3202,25 @@ var _FeishuApiClient = class {
    * @param imagePath 图片文件路径或URL
    * @returns base64编码的图片内容和SVG转换选项（如果是SVG）
    */
-  async readImageFileAsBase64(imagePath) {
-    var _a;
+  async readImageFileAsBase64(imagePath, generatedImages) {
+    var _a, _b, _c, _d;
     try {
+      const generated = generatedImages == null ? void 0 : generatedImages.get((_a = imagePath.split(/[/\\]/).pop()) != null ? _a : imagePath);
+      if (generated) {
+        const dimensions = await this.getPngDimensionsFromBase64(generated.base64);
+        let width = (_b = generated.width) != null ? _b : dimensions == null ? void 0 : dimensions.width;
+        let height = (_c = generated.height) != null ? _c : dimensions == null ? void 0 : dimensions.height;
+        if (dimensions && generated.width !== void 0 && generated.height === void 0) {
+          height = Math.round(generated.width * dimensions.height / dimensions.width);
+        } else if (dimensions && generated.height !== void 0 && generated.width === void 0) {
+          width = Math.round(generated.height * dimensions.width / dimensions.height);
+        }
+        return {
+          base64: generated.base64,
+          ...width !== void 0 ? { width } : {},
+          ...height !== void 0 ? { height } : {}
+        };
+      }
       if (imagePath.startsWith("http://") || imagePath.startsWith("https://")) {
         this.debug("[\u98DE\u4E66API] \u68C0\u6D4B\u5230\u8FDC\u7A0B\u56FE\u7247\uFF0C\u5F00\u59CB\u4E0B\u8F7D:", imagePath);
         try {
@@ -1226,7 +3284,7 @@ var _FeishuApiClient = class {
         console.error("[\u98DE\u4E66API] \u627E\u4E0D\u5230\u56FE\u7247\u6587\u4EF6:", fullPath);
         return null;
       }
-      const fileExtension = (_a = file.extension) == null ? void 0 : _a.toLowerCase();
+      const fileExtension = (_d = file.extension) == null ? void 0 : _d.toLowerCase();
       if (fileExtension === "svg") {
         const svgContent = await app.vault.read(file);
         if (!SvgConverter.isSvgFile(file.name, svgContent)) {
@@ -1341,10 +3399,13 @@ var _FeishuApiClient = class {
   static extractImageInfoFromMarkdown(markdownContent, basePath) {
     const imageInfos = [];
     const convertedContent = _FeishuApiClient.convertObsidianImageSyntax(markdownContent);
+    const imageStarts = new Set(findImageRanges(convertedContent).map((range) => range.from));
     const markdownImageRegex = /!\[([^\]]*)\]\(([^)\s]+)(?:\s+"([^"]*)")?\)/g;
     let match;
     let position = 0;
     while ((match = markdownImageRegex.exec(convertedContent)) !== null) {
+      if (!imageStarts.has(match.index))
+        continue;
       const path = match[2];
       if (!path)
         continue;
@@ -1401,7 +3462,7 @@ var _FeishuApiClient = class {
    * @param onProgress 进度回调
    * @param preProcessedImageInfos 预处理的图片信息（按正确顺序）
    */
-  async uploadDocumentWithImageInfos(fileName, markdownContent, documentId, onProgress, preProcessedImageInfos) {
+  async uploadDocumentWithImageInfos(fileName, markdownContent, documentId, onProgress, preProcessedImageInfos, generatedImages) {
     var _a, _b;
     let mdFileToken = null;
     try {
@@ -1426,7 +3487,7 @@ var _FeishuApiClient = class {
       }
       if (imageInfos.length > 0) {
         onProgress == null ? void 0 : onProgress("\u6B63\u5728\u5904\u7406\u6587\u6863\u4E2D\u7684\u56FE\u7247...");
-        await this.processImagesInDocument(result.token, imageInfos, onProgress);
+        await this.processImagesInDocument(result.token, imageInfos, onProgress, generatedImages);
       }
       if (mdFileToken) {
         try {
@@ -1467,7 +3528,7 @@ var _FeishuApiClient = class {
    * @param documentId 目标文档ID（可选）
    * @param onProgress 进度回调
    */
-  async uploadDocument(fileName, markdownContent, documentId, onProgress) {
+  async uploadDocument(fileName, markdownContent, documentId, onProgress, generatedImages) {
     var _a, _b;
     let mdFileToken = null;
     try {
@@ -1487,7 +3548,7 @@ var _FeishuApiClient = class {
       const imageInfos = _FeishuApiClient.extractImageInfoFromMarkdown(markdownContent, basePath);
       if (imageInfos.length > 0) {
         onProgress == null ? void 0 : onProgress("\u6B63\u5728\u5904\u7406\u6587\u6863\u4E2D\u7684\u56FE\u7247...");
-        await this.processImagesInDocument(result.token, imageInfos, onProgress);
+        await this.processImagesInDocument(result.token, imageInfos, onProgress, generatedImages);
       }
       if (mdFileToken) {
         try {
@@ -3386,9 +5447,95 @@ YamlProcessor.debugEnabled = false;
 // YAML frontmatter 正则表达式
 YamlProcessor.YAML_REGEX = /^---\s*\n([\s\S]*?)\n---\s*\n/;
 
+// upload-preprocessor.ts
+var obsidian = __toESM(require("obsidian"));
+var import_obsidian3 = require("obsidian");
+var PreprocessError = class extends Error {
+  constructor(path, file, error) {
+    super(`\u9884\u5904\u7406\u811A\u672C ${path}\uFF08${file}\uFF09\u5931\u8D25: ${error instanceof Error ? error.message : String(error)}`);
+    this.name = "PreprocessError";
+  }
+};
+function parseScriptPaths(value) {
+  return value.split(/\r?\n/).map((path) => path.trim()).filter(Boolean);
+}
+var UploadPreprocessor = class {
+  constructor(app, scripts) {
+    this.app = app;
+    this.scripts = scripts;
+  }
+  static async load(app, paths) {
+    const scripts = [];
+    for (const path of paths) {
+      try {
+        if (/^(?:[/\\]|[A-Za-z]:)/.test(path) || path.split(/[/\\]/).includes("..") || !path.endsWith(".js")) {
+          throw new Error("\u8BF7\u4F7F\u7528\u5E93\u5185 .js \u6587\u4EF6\u7684\u76F8\u5BF9\u8DEF\u5F84");
+        }
+        const source = await app.vault.adapter.read((0, import_obsidian3.normalizePath)(path));
+        const module2 = { exports: {} };
+        new Function("module", "exports", '"use strict";\n' + source)(module2, module2.exports);
+        if (typeof module2.exports !== "function")
+          throw new Error("\u811A\u672C\u5FC5\u987B\u901A\u8FC7 module.exports \u5BFC\u51FA\u51FD\u6570");
+        scripts.push({ path, run: module2.exports });
+      } catch (error) {
+        throw new PreprocessError(path, "\u52A0\u8F7D\u811A\u672C", error);
+      }
+    }
+    return new UploadPreprocessor(app, scripts);
+  }
+  async run(content, file) {
+    const images = /* @__PURE__ */ new Map();
+    const id = crypto.randomUUID();
+    let imageIndex = 0;
+    const addImage = async (image, options = {}) => {
+      var _a;
+      const extensions = {
+        "image/png": "png",
+        "image/jpeg": "jpg",
+        "image/gif": "gif",
+        "image/webp": "webp",
+        "image/bmp": "bmp"
+      };
+      const extension = extensions[image.type];
+      if (!extension || image.size === 0)
+        throw new Error("addImage \u9700\u8981\u975E\u7A7A PNG/JPEG/GIF/WebP/BMP Blob");
+      for (const dimension of [options.width, options.height]) {
+        if (dimension !== void 0 && (!Number.isFinite(dimension) || dimension <= 0)) {
+          throw new Error("\u56FE\u7247\u5BBD\u9AD8\u5FC5\u987B\u4E3A\u6B63\u6570");
+        }
+      }
+      const label = ((_a = options.name) != null ? _a : "image").replace(/[^\p{L}\p{N}_-]/gu, "_").slice(0, 60);
+      const path = `obshare-preprocess-${id}-${imageIndex++}-${label}.${extension}`;
+      const bytes = new Uint8Array(await image.arrayBuffer());
+      let binary = "";
+      for (let start = 0; start < bytes.length; start += 8192) {
+        binary += String.fromCharCode(...bytes.subarray(start, start + 8192));
+      }
+      images.set(path, {
+        base64: btoa(binary),
+        ...options.width !== void 0 ? { width: options.width } : {},
+        ...options.height !== void 0 ? { height: options.height } : {}
+      });
+      return path;
+    };
+    for (const script of this.scripts) {
+      try {
+        const result = await script.run({ content, file, app: this.app, obsidian, findWikiEmbeds, addImage });
+        if (typeof result !== "string")
+          throw new Error("\u811A\u672C\u5FC5\u987B\u8FD4\u56DE Markdown \u5B57\u7B26\u4E32");
+        content = result;
+      } catch (error) {
+        throw new PreprocessError(script.path, file.path, error);
+      }
+    }
+    return { content, images };
+  }
+};
+
 // link-processor.ts
 var _LinkProcessor = class {
-  constructor(app, feishuClient, plugin) {
+  constructor(app, feishuClient, plugin, preprocessor) {
+    this.preprocessor = preprocessor;
     this.uploadedDocuments = /* @__PURE__ */ new Map();
     // 缓存已上传的文档
     this.processingDocuments = /* @__PURE__ */ new Set();
@@ -3426,6 +5573,8 @@ var _LinkProcessor = class {
     let match;
     while ((match = wikiLinkRegex.exec(content)) !== null) {
       if (!match[1])
+        continue;
+      if (content[match.index - 1] === "!")
         continue;
       const title = match[1].trim();
       const originalText = match[0];
@@ -3509,6 +5658,8 @@ var _LinkProcessor = class {
           }
         }
       } catch (error) {
+        if (error instanceof PreprocessError)
+          throw error;
         this.logError(`[\u53CC\u94FE\u5904\u7406] \u6587\u6863\u4E0A\u4F20\u5931\u8D25: ${wikiLink.title}`, error, {
           title: wikiLink.title
         });
@@ -3536,11 +5687,14 @@ var _LinkProcessor = class {
     }
     this.processingDocuments.add(wikiLink.title);
     try {
-      const content = await this.app.vault.read(wikiLink.file);
+      const originalContent = await this.app.vault.read(wikiLink.file);
+      const prepared = this.preprocessor ? await this.preprocessor.run(originalContent, wikiLink.file) : { content: originalContent, images: void 0 };
       const uploadResult = await this.feishuClient.uploadDocument(
         wikiLink.file.name,
-        content,
-        this.plugin.settings.folderToken
+        prepared.content,
+        this.plugin.settings.folderToken,
+        void 0,
+        prepared.images
       );
       const result = {
         token: uploadResult.token,
@@ -3550,6 +5704,8 @@ var _LinkProcessor = class {
       this.uploadedDocuments.set(wikiLink.title, result);
       return result;
     } catch (error) {
+      if (error instanceof PreprocessError)
+        throw error;
       this.logError(`[\u53CC\u94FE\u5904\u7406] \u6587\u6863\u4E0A\u4F20\u5931\u8D25: ${wikiLink.title}`, error, {
         title: wikiLink.title
       });
@@ -3629,7 +5785,7 @@ var LinkProcessor = _LinkProcessor;
 LinkProcessor.debugEnabled = false;
 
 // mermaid-converter.ts
-var import_obsidian3 = require("obsidian");
+var import_obsidian4 = require("obsidian");
 var MermaidConverter = class {
   static setDebugEnabled(enabled) {
     this.debugEnabled = enabled;
@@ -3730,11 +5886,11 @@ var MermaidConverter = class {
       tempContainer = document.createElement("div");
       tempContainer.classList.add("obshare-mermaid-temp-container");
       document.body.appendChild(tempContainer);
-      component = new import_obsidian3.Component();
+      component = new import_obsidian4.Component();
       const markdownContent = `\`\`\`mermaid
 ${mermaidContent}
 \`\`\``;
-      await import_obsidian3.MarkdownRenderer.render(
+      await import_obsidian4.MarkdownRenderer.render(
         app,
         markdownContent,
         tempContainer,
@@ -3978,7 +6134,7 @@ var NotificationManager = class {
       return;
     }
     this.activeNotifications.add(noticeKey);
-    new import_obsidian4.Notice(message, duration);
+    new import_obsidian5.Notice(message, duration);
     const timeout = setTimeout(() => {
       this.activeNotifications.delete(noticeKey);
       this.notificationTimeouts.delete(noticeKey);
@@ -4007,9 +6163,11 @@ var DEFAULT_SETTINGS = {
   // 当前年月
   enableDoubleLinkMode: true,
   // 默认启用双链模式
-  debugLoggingEnabled: false
+  debugLoggingEnabled: false,
+  preprocessingEnabled: false,
+  preprocessingScriptPaths: ""
 };
-var FeishuUploaderPlugin = class extends import_obsidian4.Plugin {
+var FeishuUploaderPlugin = class extends import_obsidian5.Plugin {
   constructor() {
     super(...arguments);
     // 飞书客户端实例
@@ -4049,9 +6207,16 @@ var FeishuUploaderPlugin = class extends import_obsidian4.Plugin {
         void this.uploadCurrentDocument();
       }
     });
+    this.addCommand({
+      id: "preview-upload-preprocessing",
+      name: "\u9884\u89C8\u4E0A\u4F20\u9884\u5904\u7406",
+      callback: () => {
+        void this.previewPreprocessing();
+      }
+    });
     this.registerEvent(
       this.app.workspace.on("file-menu", (menu, file) => {
-        if (file instanceof import_obsidian4.TFile && file.extension === "md") {
+        if (file instanceof import_obsidian5.TFile && file.extension === "md") {
           menu.addItem((item) => {
             item.setTitle("\u5206\u4EAB\u8BE5\u9875\u9762").setIcon("share").onClick(() => {
               void this.uploadFile(file);
@@ -4164,6 +6329,7 @@ var FeishuUploaderPlugin = class extends import_obsidian4.Plugin {
   collectAllImageInfos(content) {
     var _a;
     const allImages = [];
+    const imageStarts = new Set(findImageRanges(content).map((range) => range.from));
     if (MermaidConverter.hasMermaidCharts(content)) {
       const mermaidInfos = MermaidConverter.extractMermaidCharts(content);
       mermaidInfos.forEach((mermaidInfo) => {
@@ -4186,6 +6352,8 @@ var FeishuUploaderPlugin = class extends import_obsidian4.Plugin {
     const obsidianImageRegex = /!\[\[([^\]]+)\]\]/g;
     let match;
     while ((match = obsidianImageRegex.exec(content)) !== null) {
+      if (!imageStarts.has(match.index))
+        continue;
       const fileName = match[1];
       if (!fileName) {
         continue;
@@ -4204,6 +6372,8 @@ var FeishuUploaderPlugin = class extends import_obsidian4.Plugin {
     }
     const markdownImageRegex = /!\[([^\]]*)\]\(([^)\s]+)(?:\s+"([^"]*)")?\)/g;
     while ((match = markdownImageRegex.exec(content)) !== null) {
+      if (!imageStarts.has(match.index))
+        continue;
       const alt = (_a = match[1]) != null ? _a : "";
       const path = match[2];
       const title = match[3];
@@ -4232,7 +6402,7 @@ var FeishuUploaderPlugin = class extends import_obsidian4.Plugin {
    * 上传当前文档
    */
   async uploadCurrentDocument() {
-    const activeView = this.app.workspace.getActiveViewOfType(import_obsidian4.MarkdownView);
+    const activeView = this.app.workspace.getActiveViewOfType(import_obsidian5.MarkdownView);
     if (!activeView) {
       this.notificationManager.showNotice("\u8BF7\u5148\u6253\u5F00\u4E00\u4E2AMarkdown\u6587\u6863", 4e3, "no-markdown-doc");
       return;
@@ -4247,9 +6417,24 @@ var FeishuUploaderPlugin = class extends import_obsidian4.Plugin {
   /**
    * 转换当前文档中的 Callout 为飞书高亮块
    */
-  /**
-   * 上传指定文件
-   */
+  loadPreprocessor() {
+    return UploadPreprocessor.load(this.app, this.settings.preprocessingEnabled ? parseScriptPaths(this.settings.preprocessingScriptPaths) : []);
+  }
+  async previewPreprocessing() {
+    const file = this.app.workspace.getActiveFile();
+    if (!file || file.extension !== "md") {
+      new import_obsidian5.Notice("\u8BF7\u5148\u6253\u5F00\u4E00\u4E2A Markdown \u6587\u6863");
+      return;
+    }
+    try {
+      const preprocessor = await this.loadPreprocessor();
+      const result = await preprocessor.run(await this.app.vault.read(file), file);
+      new PreprocessingPreviewModal(this.app, file, result).open();
+    } catch (error) {
+      new import_obsidian5.Notice(error instanceof Error ? error.message : String(error), 8e3);
+    }
+  }
+  /** 上传指定文件，先处理上传副本，再调用飞书。 */
   async uploadFile(file) {
     const client = this.feishuClient;
     if (!client) {
@@ -4269,10 +6454,14 @@ var FeishuUploaderPlugin = class extends import_obsidian4.Plugin {
     try {
       progressModal.updateProgress(5, "\u6B63\u5728\u8BFB\u53D6\u6587\u6863\u5185\u5BB9...");
       progressModal.updateProgress(10, "\u6B63\u5728\u5206\u6790\u6587\u6863\u683C\u5F0F...");
+      const preprocessor = await this.loadPreprocessor();
+      progressModal.updateProgress(12, "\u6B63\u5728\u6267\u884C\u4E0A\u4F20\u9884\u5904\u7406...");
+      const prepared = await preprocessor.run(content, file);
+      content = prepared.content;
       let linkProcessor = null;
       let linkResult = null;
       if (this.settings.enableDoubleLinkMode && this.feishuClient) {
-        linkProcessor = new LinkProcessor(this.app, this.feishuClient, this);
+        linkProcessor = new LinkProcessor(this.app, this.feishuClient, this, preprocessor);
         linkResult = await linkProcessor.processWikiLinks(content, (status) => {
           const baseProgress = 15;
           const maxProgress = 35;
@@ -4374,7 +6563,7 @@ var FeishuUploaderPlugin = class extends import_obsidian4.Plugin {
         }
       }
       progressModal.updateProgress(55, "\u6B63\u5728\u4E0A\u4F20\u6587\u6863\u5230\u98DE\u4E66...");
-      const result = await this.performNormalUpload(file, content, hasImages, orderedImageInfos, progressModal);
+      const result = await this.performNormalUpload(file, content, hasImages, orderedImageInfos, progressModal, prepared.images);
       let processStep = 80;
       if (cachedYaml) {
         progressModal.updateProgress(processStep, "\u6B63\u5728\u5904\u7406\u6587\u6863\u4FE1\u606F\u5757...");
@@ -4418,7 +6607,7 @@ var FeishuUploaderPlugin = class extends import_obsidian4.Plugin {
       if (errorMessage.includes("\u5BFC\u5165\u4EFB\u52A1\u5904\u7406\u8D85\u65F6")) {
         userMessage = "\u6587\u6863\u5904\u7406\u65F6\u95F4\u8F83\u957F\uFF0C\u8BF7\u7A0D\u540E\u624B\u52A8\u68C0\u67E5\u98DE\u4E66\u4E91\u6587\u6863\u4E2D\u7684\u65B0\u6587\u6863\u3002";
         progressModal.complete();
-        new import_obsidian4.Notice(userMessage, 1e4);
+        new import_obsidian5.Notice(userMessage, 1e4);
         return;
       } else if (errorMessage.includes("\u7F51\u7EDC\u8FDE\u63A5\u5931\u8D25")) {
         userMessage = "\u7F51\u7EDC\u8FDE\u63A5\u5931\u8D25\uFF0C\u8BF7\u68C0\u67E5\u4EE5\u4E0B\u9879\u76EE\uFF1A\n1. \u786E\u4FDD\u7F51\u7EDC\u8FDE\u63A5\u6B63\u5E38\n2. \u68C0\u67E5\u9632\u706B\u5899\u8BBE\u7F6E\n3. \u5C1D\u8BD5\u91CD\u65B0\u8FDE\u63A5\u7F51\u7EDC\u540E\u91CD\u8BD5";
@@ -4432,7 +6621,7 @@ var FeishuUploaderPlugin = class extends import_obsidian4.Plugin {
         userMessage = `\u4E0A\u4F20\u5931\u8D25: ${errorMessage}`;
       }
       progressModal.showError(userMessage);
-      new import_obsidian4.Notice(userMessage, 8e3);
+      new import_obsidian5.Notice(userMessage, 8e3);
       if (errorMessage.includes("\u7F51\u7EDC\u8FDE\u63A5\u5931\u8D25")) {
         this.showRetryDialog(file);
       }
@@ -4449,7 +6638,7 @@ var FeishuUploaderPlugin = class extends import_obsidian4.Plugin {
    * @param progressModal 进度模态框
    * @returns 上传结果
    */
-  async performNormalUpload(file, content, hasImages, orderedImageInfos, progressModal) {
+  async performNormalUpload(file, content, hasImages, orderedImageInfos, progressModal, generatedImages) {
     let result;
     if (hasImages) {
       result = await this.feishuRichClient.uploadDocumentWithImageInfos(
@@ -4472,7 +6661,8 @@ var FeishuUploaderPlugin = class extends import_obsidian4.Plugin {
           }
           progressModal.updateProgress(currentProgress, status);
         },
-        orderedImageInfos
+        orderedImageInfos,
+        generatedImages
       );
     } else {
       result = await this.feishuClient.uploadDocument(
@@ -4734,7 +6924,7 @@ var FeishuUploaderPlugin = class extends import_obsidian4.Plugin {
     }
   }
 };
-var DocumentPermissionModal = class extends import_obsidian4.Modal {
+var DocumentPermissionModal = class extends import_obsidian5.Modal {
   // 标识是否允许关闭
   constructor(app, docToken, docUrl, title, plugin, isFromSettings = false) {
     super(app);
@@ -4750,7 +6940,7 @@ var DocumentPermissionModal = class extends import_obsidian4.Modal {
     const { contentEl } = this;
     contentEl.empty();
     contentEl.addClass("obshare-feishu-permission-modal");
-    new import_obsidian4.Setting(contentEl).setName("\u8BBE\u7F6E\u6587\u6863\u6743\u9650").setHeading();
+    new import_obsidian5.Setting(contentEl).setName("\u8BBE\u7F6E\u6587\u6863\u6743\u9650").setHeading();
     contentEl.createEl("p", { text: `\u4E3A\u6587\u6863 "${this.title}" \u8BBE\u7F6E\u8BBF\u95EE\u6743\u9650` });
     const permissionContainer = contentEl.createDiv("obshare-permission-options");
     const publicOption = permissionContainer.createDiv("obshare-permission-option");
@@ -4935,7 +7125,7 @@ var DocumentPermissionModal = class extends import_obsidian4.Modal {
    * 检测并转换 Callout
    */
 };
-var UploadResultModal = class extends import_obsidian4.Modal {
+var UploadResultModal = class extends import_obsidian5.Modal {
   constructor(app, url, title) {
     super(app);
     this.url = url;
@@ -4947,7 +7137,7 @@ var UploadResultModal = class extends import_obsidian4.Modal {
     contentEl.addClass("obshare-feishu-success-modal");
     const successTitle = "\u4E0A\u4F20\u6210\u529F\uFF01";
     const successMessage = `\u6587\u6863 "${this.title}" \u5DF2\u6210\u529F\u4E0A\u4F20\u5230\u98DE\u4E66\u4E91\u6587\u6863`;
-    new import_obsidian4.Setting(contentEl).setName(successTitle).setHeading();
+    new import_obsidian5.Setting(contentEl).setName(successTitle).setHeading();
     contentEl.createEl("p", { text: successMessage });
     const linkEl = contentEl.createEl("a", {
       text: this.url,
@@ -4958,9 +7148,9 @@ var UploadResultModal = class extends import_obsidian4.Modal {
     const copyButton = buttonContainer.createEl("button", { text: "\u590D\u5236\u94FE\u63A5" });
     copyButton.onclick = () => {
       void navigator.clipboard.writeText(this.url).then(() => {
-        new import_obsidian4.Notice("\u94FE\u63A5\u5DF2\u590D\u5236\u5230\u526A\u8D34\u677F");
+        new import_obsidian5.Notice("\u94FE\u63A5\u5DF2\u590D\u5236\u5230\u526A\u8D34\u677F");
       }).catch(() => {
-        new import_obsidian4.Notice("\u590D\u5236\u5931\u8D25\uFF0C\u8BF7\u624B\u52A8\u590D\u5236\u94FE\u63A5");
+        new import_obsidian5.Notice("\u590D\u5236\u5931\u8D25\uFF0C\u8BF7\u624B\u52A8\u590D\u5236\u94FE\u63A5");
       });
     };
     const openButton = buttonContainer.createEl("button", { text: "\u6253\u5F00\u6587\u6863" });
@@ -4977,7 +7167,7 @@ var UploadResultModal = class extends import_obsidian4.Modal {
     contentEl.empty();
   }
 };
-var RetryModal = class extends import_obsidian4.Modal {
+var RetryModal = class extends import_obsidian5.Modal {
   constructor(app, onRetry) {
     super(app);
     this.onRetry = onRetry;
@@ -4985,7 +7175,7 @@ var RetryModal = class extends import_obsidian4.Modal {
   onOpen() {
     const { contentEl } = this;
     contentEl.empty();
-    new import_obsidian4.Setting(contentEl).setName("\u7F51\u7EDC\u8FDE\u63A5\u5931\u8D25").setHeading();
+    new import_obsidian5.Setting(contentEl).setName("\u7F51\u7EDC\u8FDE\u63A5\u5931\u8D25").setHeading();
     const descEl = contentEl.createEl("div", { cls: "retry-modal-desc" });
     descEl.createEl("p", { text: "\u4E0A\u4F20\u5931\u8D25\uFF0C\u53EF\u80FD\u662F\u7F51\u7EDC\u8FDE\u63A5\u95EE\u9898\u3002" });
     descEl.createEl("p", { text: "\u8BF7\u68C0\u67E5\u7F51\u7EDC\u8FDE\u63A5\u540E\u91CD\u8BD5\uFF0C\u6216\u7A0D\u540E\u518D\u8BD5\u3002" });
@@ -5005,7 +7195,7 @@ var RetryModal = class extends import_obsidian4.Modal {
     contentEl.empty();
   }
 };
-var FeishuUploaderSettingTab = class extends import_obsidian4.PluginSettingTab {
+var FeishuUploaderSettingTab = class extends import_obsidian5.PluginSettingTab {
   constructor(app, plugin) {
     super(app, plugin);
     this.plugin = plugin;
@@ -5055,7 +7245,7 @@ var FeishuUploaderSettingTab = class extends import_obsidian4.PluginSettingTab {
     const { containerEl } = this;
     containerEl.empty();
     const headerContainer = containerEl.createDiv({ cls: "obshare-header-container" });
-    const headerSetting = new import_obsidian4.Setting(headerContainer).setName("\u57FA\u7840\u8BBE\u7F6E").setHeading();
+    const headerSetting = new import_obsidian5.Setting(headerContainer).setName("\u57FA\u7840\u8BBE\u7F6E").setHeading();
     headerSetting.nameEl.empty();
     const titleRow = headerSetting.nameEl.createDiv({ cls: "obshare-title-row" });
     titleRow.createSpan({ text: "\u57FA\u7840\u8BBE\u7F6E", cls: "obshare-settings-title" });
@@ -5097,45 +7287,61 @@ var FeishuUploaderSettingTab = class extends import_obsidian4.PluginSettingTab {
       href: "https://itlueqqx8t.feishu.cn/docx/XUJmdxbf7octOFx3Vt0c3KJ3nWe"
     });
     docLink.setAttribute("target", "_blank");
-    const appIdSetting = new import_obsidian4.Setting(containerEl).setName("App ID").setDesc("\u98DE\u4E66\u5E94\u7528\u7684 app ID").addText((text) => text.setPlaceholder("\u8F93\u5165 app ID").setValue(this.plugin.settings.appId).onChange((value) => {
+    const appIdSetting = new import_obsidian5.Setting(containerEl).setName("App ID").setDesc("\u98DE\u4E66\u5E94\u7528\u7684 app ID").addText((text) => text.setPlaceholder("\u8F93\u5165 app ID").setValue(this.plugin.settings.appId).onChange((value) => {
       this.plugin.settings.appId = value;
       void this.plugin.saveSettings();
     }));
     appIdSetting.nameEl.empty();
     appIdSetting.nameEl.createSpan({ text: "App ID " });
     appIdSetting.nameEl.createSpan({ text: "*", cls: "obshare-required-field" });
-    const appSecretSetting = new import_obsidian4.Setting(containerEl).setName("App secret").setDesc("\u98DE\u4E66\u5E94\u7528\u7684 app secret").addText((text) => text.setPlaceholder("\u8F93\u5165 app secret").setValue(this.plugin.settings.appSecret).onChange((value) => {
+    const appSecretSetting = new import_obsidian5.Setting(containerEl).setName("App secret").setDesc("\u98DE\u4E66\u5E94\u7528\u7684 app secret").addText((text) => text.setPlaceholder("\u8F93\u5165 app secret").setValue(this.plugin.settings.appSecret).onChange((value) => {
       this.plugin.settings.appSecret = value;
       void this.plugin.saveSettings();
     }));
     appSecretSetting.nameEl.empty();
     appSecretSetting.nameEl.createSpan({ text: "App secret " });
     appSecretSetting.nameEl.createSpan({ text: "*", cls: "obshare-required-field" });
-    const userIdSetting = new import_obsidian4.Setting(containerEl).setName("\u7528\u6237 ID").setDesc("\u60A8\u7684\u98DE\u4E66\u7528\u6237 ID").addText((text) => text.setPlaceholder("\u8F93\u5165\u60A8\u7684\u98DE\u4E66\u7528\u6237 ID").setValue(this.plugin.settings.userId).onChange((value) => {
+    const userIdSetting = new import_obsidian5.Setting(containerEl).setName("\u7528\u6237 ID").setDesc("\u60A8\u7684\u98DE\u4E66\u7528\u6237 ID").addText((text) => text.setPlaceholder("\u8F93\u5165\u60A8\u7684\u98DE\u4E66\u7528\u6237 ID").setValue(this.plugin.settings.userId).onChange((value) => {
       this.plugin.settings.userId = value;
       void this.plugin.saveSettings();
     }));
     userIdSetting.nameEl.empty();
     userIdSetting.nameEl.createSpan({ text: "\u7528\u6237 ID " });
     userIdSetting.nameEl.createSpan({ text: "*", cls: "obshare-required-field" });
-    const folderTokenSetting = new import_obsidian4.Setting(containerEl).setName("\u6587\u4EF6\u5939 token").setDesc("\u98DE\u4E66\u4E91\u7A7A\u95F4\u6587\u4EF6\u5939\u7684 token\uFF0C\u6587\u6863\u5C06\u4E0A\u4F20\u5230\u6B64\u6587\u4EF6\u5939").addText((text) => text.setPlaceholder("\u8F93\u5165\u6587\u4EF6\u5939 token").setValue(this.plugin.settings.folderToken).onChange((value) => {
+    const folderTokenSetting = new import_obsidian5.Setting(containerEl).setName("\u6587\u4EF6\u5939 token").setDesc("\u98DE\u4E66\u4E91\u7A7A\u95F4\u6587\u4EF6\u5939\u7684 token\uFF0C\u6587\u6863\u5C06\u4E0A\u4F20\u5230\u6B64\u6587\u4EF6\u5939").addText((text) => text.setPlaceholder("\u8F93\u5165\u6587\u4EF6\u5939 token").setValue(this.plugin.settings.folderToken).onChange((value) => {
       this.plugin.settings.folderToken = value;
       void this.plugin.saveSettings();
     }));
     folderTokenSetting.nameEl.empty();
     folderTokenSetting.nameEl.createSpan({ text: "\u6587\u4EF6\u5939 token " });
     folderTokenSetting.nameEl.createSpan({ text: "*", cls: "obshare-required-field" });
-    new import_obsidian4.Setting(containerEl).setName("\u4E0A\u4F20\u8BBE\u7F6E").setHeading();
-    new import_obsidian4.Setting(containerEl).setName("\u53CC\u94FE\u6A21\u5F0F").setDesc("\u53CC\u94FE\u6A21\u5F0F\u53EF\u4EE5\u81EA\u52A8\u5E2E\u4F60\u4E0A\u4F20\u6587\u6863\u5185\u6240\u6709[[]]\u5F15\u7528\u7684\u6587\u6863\uFF0C\u81EA\u52A8\u5EFA\u7ACB\u94FE\u63A5\uFF0C\u4F7F\u5F97\u60A8\u7684\u5206\u4EAB\u66F4\u52A0\u4FBF\u6377\u5B8C\u6574\uFF0C\u4F46\u5728\u5F15\u7528\u6587\u6863\u6570\u91CF\u591A\u7684\u60C5\u51B5\u4E0B\uFF0C\u53EF\u80FD\u4F7F\u4E0A\u4F20\u901F\u5EA6\u53D8\u6162\uFF0C\u9700\u8981\u7B49\u5F85\u66F4\u4E45\u3002").addToggle((toggle) => toggle.setValue(this.plugin.settings.enableDoubleLinkMode).onChange((value) => {
+    new import_obsidian5.Setting(containerEl).setName("\u4E0A\u4F20\u8BBE\u7F6E").setHeading();
+    new import_obsidian5.Setting(containerEl).setName("\u53CC\u94FE\u6A21\u5F0F").setDesc("\u53CC\u94FE\u6A21\u5F0F\u53EF\u4EE5\u81EA\u52A8\u5E2E\u4F60\u4E0A\u4F20\u6587\u6863\u5185\u6240\u6709[[]]\u5F15\u7528\u7684\u6587\u6863\uFF0C\u81EA\u52A8\u5EFA\u7ACB\u94FE\u63A5\uFF0C\u4F7F\u5F97\u60A8\u7684\u5206\u4EAB\u66F4\u52A0\u4FBF\u6377\u5B8C\u6574\uFF0C\u4F46\u5728\u5F15\u7528\u6587\u6863\u6570\u91CF\u591A\u7684\u60C5\u51B5\u4E0B\uFF0C\u53EF\u80FD\u4F7F\u4E0A\u4F20\u901F\u5EA6\u53D8\u6162\uFF0C\u9700\u8981\u7B49\u5F85\u66F4\u4E45\u3002").addToggle((toggle) => toggle.setValue(this.plugin.settings.enableDoubleLinkMode).onChange((value) => {
       this.plugin.settings.enableDoubleLinkMode = value;
       void this.plugin.saveSettings();
     }));
-    new import_obsidian4.Setting(containerEl).setName("\u8C03\u8BD5\u65E5\u5FD7").setDesc("\u542F\u7528\u540E\u4F1A\u5728\u5F00\u53D1\u8005\u63A7\u5236\u53F0\u8F93\u51FA\u8C03\u8BD5\u4FE1\u606F\uFF0C\u7528\u4E8E\u6392\u67E5\u95EE\u9898\u3002").addToggle((toggle) => toggle.setValue(this.plugin.settings.debugLoggingEnabled).onChange((value) => {
+    new import_obsidian5.Setting(containerEl).setName("\u8C03\u8BD5\u65E5\u5FD7").setDesc("\u542F\u7528\u540E\u4F1A\u5728\u5F00\u53D1\u8005\u63A7\u5236\u53F0\u8F93\u51FA\u8C03\u8BD5\u4FE1\u606F\uFF0C\u7528\u4E8E\u6392\u67E5\u95EE\u9898\u3002").addToggle((toggle) => toggle.setValue(this.plugin.settings.debugLoggingEnabled).onChange((value) => {
       this.plugin.settings.debugLoggingEnabled = value;
       this.plugin.applyDebugLoggingSetting();
       void this.plugin.saveSettings();
     }));
-    new import_obsidian4.Setting(containerEl).setName("\u6D4B\u8BD5\u8FDE\u63A5").setDesc("\u6D4B\u8BD5\u98DE\u4E66 API \u8FDE\u63A5\u662F\u5426\u6B63\u5E38").addButton((button) => button.setButtonText("\u6D4B\u8BD5\u8FDE\u63A5").onClick(() => {
+    new import_obsidian5.Setting(containerEl).setName("\u4E0A\u4F20\u9884\u5904\u7406").setHeading();
+    new import_obsidian5.Setting(containerEl).setName("\u542F\u7528\u9884\u5904\u7406\u811A\u672C").setDesc("\u5728\u53CC\u94FE\u3001YAML \u548C\u56FE\u7247\u5904\u7406\u524D\u8FD0\u884C\u811A\u672C\uFF0C\u5305\u542B\u53CC\u94FE\u4E0A\u4F20\u7684\u5B50\u6587\u6863\u3002\u811A\u672C\u62E5\u6709 Obsidian \u63D2\u4EF6\u6743\u9650\uFF0C\u4EC5\u542F\u7528\u4F60\u4FE1\u4EFB\u7684\u811A\u672C\u3002").addToggle((toggle) => toggle.setValue(this.plugin.settings.preprocessingEnabled).onChange((value) => {
+      this.plugin.settings.preprocessingEnabled = value;
+      void this.plugin.saveSettings();
+    }));
+    new import_obsidian5.Setting(containerEl).setName("\u9884\u5904\u7406\u811A\u672C\u8DEF\u5F84").setDesc("\u6BCF\u884C\u4E00\u4E2A\u5E93\u5185 .js \u6587\u4EF6\u76F8\u5BF9\u8DEF\u5F84\uFF0C\u6309\u4ECE\u4E0A\u5230\u4E0B\u7684\u987A\u5E8F\u6267\u884C\u3002\u811A\u672C\u4EE5 module.exports \u5BFC\u51FA\u5F02\u6B65\u51FD\u6570\u5E76\u8FD4\u56DE Markdown \u5B57\u7B26\u4E32\uFF1B\u6BCF\u6B21\u4E0A\u4F20\u91CD\u65B0\u8BFB\u53D6\u3002").addTextArea((text) => {
+      text.setPlaceholder("Scripts/ObShare/excalidraw-to-png.js\nScripts/ObShare/cleanup.js").setValue(this.plugin.settings.preprocessingScriptPaths).onChange((value) => {
+        this.plugin.settings.preprocessingScriptPaths = value;
+        void this.plugin.saveSettings();
+      });
+      text.inputEl.rows = 4;
+      text.inputEl.cols = 40;
+    });
+    new import_obsidian5.Setting(containerEl).setName("\u9884\u89C8\u5F53\u524D\u6587\u6863").setDesc("\u6267\u884C\u5DF2\u542F\u7528\u7684\u811A\u672C\uFF0C\u67E5\u770B\u9884\u5904\u7406 Markdown \u548C\u751F\u6210\u7684\u56FE\u7247\uFF1B\u4E0D\u4F1A\u8C03\u7528\u98DE\u4E66\u4E0A\u4F20\u63A5\u53E3\u3002").addButton((button) => button.setButtonText("\u9884\u89C8\u9884\u5904\u7406").onClick(() => {
+      void this.plugin.previewPreprocessing();
+    }));
+    new import_obsidian5.Setting(containerEl).setName("\u6D4B\u8BD5\u8FDE\u63A5").setDesc("\u6D4B\u8BD5\u98DE\u4E66 API \u8FDE\u63A5\u662F\u5426\u6B63\u5E38").addButton((button) => button.setButtonText("\u6D4B\u8BD5\u8FDE\u63A5").onClick(() => {
       void (async () => {
         if (!this.plugin.feishuClient) {
           this.plugin.notificationManager.showNotice("\u8BF7\u5148\u914D\u7F6E app ID \u548C app secret", 4e3, "missing-config");
@@ -5147,22 +7353,22 @@ var FeishuUploaderSettingTab = class extends import_obsidian4.PluginSettingTab {
           if (success) {
             this.plugin.notificationManager.showNotice("\u7F51\u7EDC\u8FDE\u63A5\u6D4B\u8BD5\u6210\u529F\uFF01", 3e3, "test-success");
           } else {
-            new import_obsidian4.Notice("\u7F51\u7EDC\u8FDE\u63A5\u6D4B\u8BD5\u5931\u8D25\uFF0C\u8BF7\u68C0\u67E5\u7F51\u7EDC\u548C\u914D\u7F6E");
+            new import_obsidian5.Notice("\u7F51\u7EDC\u8FDE\u63A5\u6D4B\u8BD5\u5931\u8D25\uFF0C\u8BF7\u68C0\u67E5\u7F51\u7EDC\u548C\u914D\u7F6E");
           }
         } catch (error) {
           const errorMessage = error instanceof Error ? error.message : String(error);
           if (errorMessage.includes("\u7F51\u7EDC\u8FDE\u63A5\u5931\u8D25")) {
-            new import_obsidian4.Notice("\u7F51\u7EDC\u8FDE\u63A5\u5931\u8D25\uFF0C\u8BF7\u68C0\u67E5\u7F51\u7EDC\u8FDE\u63A5\u540E\u91CD\u8BD5");
+            new import_obsidian5.Notice("\u7F51\u7EDC\u8FDE\u63A5\u5931\u8D25\uFF0C\u8BF7\u68C0\u67E5\u7F51\u7EDC\u8FDE\u63A5\u540E\u91CD\u8BD5");
           } else {
-            new import_obsidian4.Notice(`\u8FDE\u63A5\u6D4B\u8BD5\u5931\u8D25: ${errorMessage}`);
+            new import_obsidian5.Notice(`\u8FDE\u63A5\u6D4B\u8BD5\u5931\u8D25: ${errorMessage}`);
           }
         } finally {
           button.setButtonText("\u6D4B\u8BD5\u8FDE\u63A5");
         }
       })();
     }));
-    new import_obsidian4.Setting(containerEl).setName("\u6570\u636E\u7EDF\u8BA1").setHeading();
-    new import_obsidian4.Setting(containerEl).setName("\u5206\u4EAB\u6587\u6863\u6570").setDesc(`\u60A8\u5DF2\u6210\u529F\u5206\u4EAB ${this.plugin.settings.uploadCount} \u4E2A\u6587\u6863`).addButton((button) => button.setButtonText("\u91CD\u7F6E\u8BA1\u6570").setWarning().onClick(() => {
+    new import_obsidian5.Setting(containerEl).setName("\u6570\u636E\u7EDF\u8BA1").setHeading();
+    new import_obsidian5.Setting(containerEl).setName("\u5206\u4EAB\u6587\u6863\u6570").setDesc(`\u60A8\u5DF2\u6210\u529F\u5206\u4EAB ${this.plugin.settings.uploadCount} \u4E2A\u6587\u6863`).addButton((button) => button.setButtonText("\u91CD\u7F6E\u8BA1\u6570").setWarning().onClick(() => {
       void (async () => {
         await this.plugin.resetUploadCount();
         this.display();
@@ -5171,17 +7377,17 @@ var FeishuUploaderSettingTab = class extends import_obsidian4.PluginSettingTab {
     const currentMonth = new Date().toISOString().substring(0, 7);
     const isCurrentMonth = this.plugin.settings.lastResetDate === currentMonth;
     const displayCount = isCurrentMonth ? this.plugin.settings.apiCallCount : 0;
-    new import_obsidian4.Setting(containerEl).setName("\u672C\u6708 API \u8C03\u7528\u6B21\u6570").setDesc(`\u672C\u6708\u5DF2\u8C03\u7528\u98DE\u4E66 API ${displayCount} \u6B21`).addButton((button) => button.setButtonText("\u91CD\u7F6E\u8BA1\u6570").setWarning().onClick(() => {
+    new import_obsidian5.Setting(containerEl).setName("\u672C\u6708 API \u8C03\u7528\u6B21\u6570").setDesc(`\u672C\u6708\u5DF2\u8C03\u7528\u98DE\u4E66 API ${displayCount} \u6B21`).addButton((button) => button.setButtonText("\u91CD\u7F6E\u8BA1\u6570").setWarning().onClick(() => {
       void (async () => {
         await this.plugin.resetApiCallCount();
         this.display();
       })();
     }));
-    new import_obsidian4.Setting(containerEl).setName("\u5206\u4EAB\u7BA1\u7406").setHeading();
+    new import_obsidian5.Setting(containerEl).setName("\u5206\u4EAB\u7BA1\u7406").setHeading();
     if (this.plugin.settings.uploadHistory.length === 0) {
       containerEl.createEl("p", { text: "\u6682\u65E0\u4E0A\u4F20\u8BB0\u5F55", cls: "obshare-upload-history-empty" });
     } else {
-      new import_obsidian4.Setting(containerEl).setName("\u6E05\u7A7A\u5386\u53F2\u8BB0\u5F55").setDesc("\u5206\u4EAB\u5386\u53F2\u8BB0\u5F55").addButton((button) => button.setButtonText("\u6E05\u7A7A").setWarning().onClick(() => {
+      new import_obsidian5.Setting(containerEl).setName("\u6E05\u7A7A\u5386\u53F2\u8BB0\u5F55").setDesc("\u5206\u4EAB\u5386\u53F2\u8BB0\u5F55").addButton((button) => button.setButtonText("\u6E05\u7A7A").setWarning().onClick(() => {
         void (async () => {
           await this.plugin.clearUploadHistory();
           this.display();
@@ -5232,9 +7438,9 @@ var FeishuUploaderSettingTab = class extends import_obsidian4.PluginSettingTab {
           });
           copyIcon.onclick = () => {
             void navigator.clipboard.writeText(item.url).then(() => {
-              new import_obsidian4.Notice("\u94FE\u63A5\u5DF2\u590D\u5236\u5230\u526A\u8D34\u677F");
+              new import_obsidian5.Notice("\u94FE\u63A5\u5DF2\u590D\u5236\u5230\u526A\u8D34\u677F");
             }).catch(() => {
-              new import_obsidian4.Notice("\u590D\u5236\u5931\u8D25\uFF0C\u8BF7\u624B\u52A8\u590D\u5236\u94FE\u63A5");
+              new import_obsidian5.Notice("\u590D\u5236\u5931\u8D25\uFF0C\u8BF7\u624B\u52A8\u590D\u5236\u94FE\u63A5");
             });
           };
           const permissionIcon = linkRowEl.createEl("span", {
@@ -5298,7 +7504,7 @@ var FeishuUploaderSettingTab = class extends import_obsidian4.PluginSettingTab {
     }
   }
 };
-var DeleteConfirmationModal = class extends import_obsidian4.Modal {
+var DeleteConfirmationModal = class extends import_obsidian5.Modal {
   constructor(app, message, onConfirm) {
     super(app);
     this.message = message;
@@ -5307,7 +7513,7 @@ var DeleteConfirmationModal = class extends import_obsidian4.Modal {
   onOpen() {
     const { contentEl } = this;
     contentEl.empty();
-    new import_obsidian4.Setting(contentEl).setName("\u786E\u8BA4\u5220\u9664").setHeading();
+    new import_obsidian5.Setting(contentEl).setName("\u786E\u8BA4\u5220\u9664").setHeading();
     contentEl.createEl("p", { text: this.message });
     const buttonContainer = contentEl.createDiv("obshare-modal-button-container");
     const confirmButton = buttonContainer.createEl("button", { text: "\u786E\u8BA4\u5220\u9664", cls: "mod-warning" });
@@ -5326,7 +7532,7 @@ var DeleteConfirmationModal = class extends import_obsidian4.Modal {
     contentEl.empty();
   }
 };
-var UploadProgressModal = class extends import_obsidian4.Modal {
+var UploadProgressModal = class extends import_obsidian5.Modal {
   // 伪进度最大值
   constructor(app) {
     super(app);
@@ -5343,7 +7549,7 @@ var UploadProgressModal = class extends import_obsidian4.Modal {
     contentEl.empty();
     contentEl.addClass("obshare-feishu-upload-progress-modal");
     const titleText = "\u6B63\u5728\u4E0A\u4F20\u6587\u6863";
-    const titleSetting = new import_obsidian4.Setting(contentEl).setName(titleText).setHeading();
+    const titleSetting = new import_obsidian5.Setting(contentEl).setName(titleText).setHeading();
     this.titleElement = titleSetting.nameEl;
     this.titleElement.addClass("obshare-progress-modal-title");
     this.stepText = contentEl.createEl("div", { text: "\u51C6\u5907\u4E0A\u4F20...", cls: "obshare-progress-modal-step" });
@@ -5454,17 +7660,40 @@ var UploadProgressModal = class extends import_obsidian4.Modal {
     contentEl.empty();
   }
 };
-var UserAgreementModal = class extends import_obsidian4.Modal {
+var PreprocessingPreviewModal = class extends import_obsidian5.Modal {
+  constructor(app, file, result) {
+    super(app);
+    this.file = file;
+    this.result = result;
+  }
+  onOpen() {
+    this.titleEl.setText(`\u4E0A\u4F20\u9884\u5904\u7406\u9884\u89C8\uFF1A${this.file.basename}`);
+    this.contentEl.createEl("p", { text: `\u751F\u6210\u56FE\u7247 ${this.result.images.size} \u5F20\u3002\u4EE5\u4E0B\u5185\u5BB9\u662F\u9884\u5904\u7406\u7ED3\u679C\uFF0C\u540E\u7EED\u4ECD\u4F1A\u7ECF\u8FC7 ObShare \u7684\u53CC\u94FE\u3001YAML \u548C\u56FE\u7247\u8F6C\u6362\u3002` });
+    const source = this.contentEl.createEl("textarea", { cls: "obshare-preprocessing-preview" });
+    source.value = this.result.content;
+    source.readOnly = true;
+    for (const [path, image] of this.result.images) {
+      this.contentEl.createEl("p", { text: path });
+      const preview = this.contentEl.createEl("img", { cls: "obshare-preprocessing-image" });
+      const mime = path.endsWith(".jpg") ? "image/jpeg" : `image/${path.split(".").pop()}`;
+      preview.src = `data:${mime};base64,${image.base64}`;
+    }
+  }
+  onClose() {
+    this.contentEl.empty();
+  }
+};
+var UserAgreementModal = class extends import_obsidian5.Modal {
   constructor(app, plugin) {
     super(app);
     this.plugin = plugin;
-    this.component = new import_obsidian4.Component();
+    this.component = new import_obsidian5.Component();
   }
   onOpen() {
     const { contentEl } = this;
     contentEl.empty();
     contentEl.addClass("obshare-user-agreement-modal");
-    new import_obsidian4.Setting(contentEl).setName("Obshare \u7528\u6237\u534F\u8BAE").setHeading();
+    new import_obsidian5.Setting(contentEl).setName("Obshare \u7528\u6237\u534F\u8BAE").setHeading();
     const agreementContainer = contentEl.createDiv({ cls: "obshare-agreement-content" });
     const agreementText = `\u6B22\u8FCE\u4F7F\u7528 obshare\uFF08\u4EE5\u4E0B\u7B80\u79F0"\u672C\u63D2\u4EF6"\uFF09\u3002\u5728\u4F7F\u7528\u672C\u63D2\u4EF6\u4E4B\u524D\uFF0C\u8BF7\u60A8\u4ED4\u7EC6\u9605\u8BFB\u5E76\u7406\u89E3\u4EE5\u4E0B\u6761\u6B3E\u3002\u4F7F\u7528\u672C\u63D2\u4EF6\u5373\u89C6\u4E3A\u60A8\u5DF2\u540C\u610F\u5E76\u9075\u5B88\u672C\u534F\u8BAE\u3002
 
@@ -5515,14 +7744,14 @@ var UserAgreementModal = class extends import_obsidian4.Modal {
 2. **\u7528\u6237\u81EA\u4E3B\u9000\u51FA\u673A\u5236**\u3002\u60A8\u53EF\u968F\u65F6\u5378\u8F7D\u672C\u63D2\u4EF6\u6216\u5220\u9664\u672C\u5730\u914D\u7F6E\u6587\u4EF6\uFF08\u5982 \`data.json\`\uFF09\u4EE5\u7EC8\u6B62\u4F7F\u7528\u3002\u4E00\u65E6\u5378\u8F7D\uFF0C\u6240\u6709\u672C\u5730\u7F13\u5B58\u6570\u636E\u5C06\u88AB\u6E05\u9664\uFF0C\u4F46\u60A8\u5728\u98DE\u4E66\u7B49\u5916\u90E8\u5E73\u53F0\u5DF2\u7ECF\u4E0A\u4F20\u7684\u5185\u5BB9\u4E0D\u4F1A\u56E0\u6B64\u5220\u9664\uFF0C\u4ECD\u9700\u60A8\u81EA\u884C\u5904\u7406\uFF0C\u60A8\u4ECD\u9700\u5BF9\u4E0A\u4F20\u81F3\u98DE\u4E66\u7B49\u5916\u90E8\u5E73\u53F0\u7684\u5185\u5BB9\u8D1F\u8D23\u3002
 
 3. **\u63D2\u4EF6\u7EC8\u6B62\u4F7F\u7528**\u3002\u82E5\u53D1\u73B0\u672C\u63D2\u4EF6\u5B58\u5728\u4E25\u91CD\u5B89\u5168\u6F0F\u6D1E\u3001\u6076\u610F\u884C\u4E3A\u6216\u8FDD\u53CD\u5F00\u6E90\u539F\u5219\u7684\u60C5\u51B5\uFF0C\u4F5C\u8005\u6709\u6743\u7ACB\u5373\u505C\u6B62\u7EF4\u62A4\u6216\u53D1\u5E03\u7EC8\u6B62\u7248\u672C\u3002\u5C4A\u65F6\u5EFA\u8BAE\u7528\u6237\u5C3D\u5FEB\u8FC1\u79FB\u6570\u636E\u5E76\u505C\u6B62\u4F7F\u7528\u3002`;
-    void import_obsidian4.MarkdownRenderer.render(this.app, agreementText, agreementContainer, "", this.component);
+    void import_obsidian5.MarkdownRenderer.render(this.app, agreementText, agreementContainer, "", this.component);
     const buttonContainer = contentEl.createDiv({ cls: "obshare-agreement-buttons" });
     const rejectButton = buttonContainer.createEl("button", {
       text: "\u62D2\u7EDD"
     });
     rejectButton.onclick = () => {
       this.close();
-      new import_obsidian4.Notice("\u60A8\u5DF2\u62D2\u7EDD\u7528\u6237\u534F\u8BAE\uFF0C\u63D2\u4EF6\u529F\u80FD\u5C06\u4E0D\u53EF\u7528\u3002", 5e3);
+      new import_obsidian5.Notice("\u60A8\u5DF2\u62D2\u7EDD\u7528\u6237\u534F\u8BAE\uFF0C\u63D2\u4EF6\u529F\u80FD\u5C06\u4E0D\u53EF\u7528\u3002", 5e3);
     };
     const agreeButton = buttonContainer.createEl("button", {
       text: "\u540C\u610F\u5E76\u7EE7\u7EED",
@@ -5534,7 +7763,7 @@ var UserAgreementModal = class extends import_obsidian4.Modal {
         await this.plugin.saveSettings();
         this.plugin.completeInitialization();
         this.close();
-        new import_obsidian4.Notice("\u6B22\u8FCE\u4F7F\u7528 obshare\uFF01", 3e3);
+        new import_obsidian5.Notice("\u6B22\u8FCE\u4F7F\u7528 obshare\uFF01", 3e3);
       })();
     };
   }
